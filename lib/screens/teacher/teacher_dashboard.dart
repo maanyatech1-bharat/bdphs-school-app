@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../shared/ai_chatbot_screen.dart';
 
-// Shared screens
 import '../shared/notices_screen.dart';
 import '../shared/books_screen.dart';
 import '../shared/timetable_screen.dart';
@@ -15,24 +15,20 @@ import '../shared/videos_screen.dart';
 import '../shared/more_screens.dart';
 import '../shared/leave_screen.dart';
 import '../shared/fee_screen.dart';
-// exam_screen.dart removed — LeaveScreen and EnterMarksScreen
-// are now in dedicated files; ExamScreen doesn't exist in this project
 import '../shared/ai_chatbot_screen.dart';
 import '../shared/dictionary_screen.dart';
 import '../shared/profile_edit_screen.dart';
-import '../shared/homework_screen.dart';          // ✅ Fixed
-import '../shared/study_material_screen.dart';    // ✅ Fixed — now has StudyMaterialScreen
-import '../shared/study_notes_screen.dart';       // ✅ Fixed
-import '../shared/quiz_screen.dart';              // ✅ Fixed — QuizListScreen
+import '../shared/homework_screen.dart';
+import '../shared/study_material_screen.dart';
+import '../shared/study_notes_screen.dart';
+import '../shared/quiz_screen.dart';
 
-// Teacher screens
 import '../teacher/monthly_assessment_screen.dart';
 import '../teacher/take_attendance_screen.dart';
-import '../teacher/enter_marks_screen.dart';      // ✅ Fixed
-import '../teacher/my_students_screen.dart';      // ✅ NEW
-import '../shared/exam_schedule_screen.dart';     // ✅ Exam schedule
+import '../teacher/enter_marks_screen.dart';
+import '../teacher/my_students_screen.dart';
+import '../shared/exam_schedule_screen.dart';
 
-// Auth
 import '../auth/login_screen.dart';
 
 class TeacherDashboard extends StatefulWidget {
@@ -97,7 +93,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 }
 
-// ─── Home Tab ─────────────────────────────────────────────────────────────────
 class _HomeTab extends StatelessWidget {
   final dynamic user;
   const _HomeTab({required this.user});
@@ -114,7 +109,6 @@ class _HomeTab extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          // ── App Bar ─────────────────────────────────────────────────
           SliverAppBar(
             expandedHeight: 120,
             floating: false,
@@ -133,7 +127,6 @@ class _HomeTab extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Row(children: [
-                      // Tappable avatar → edit profile
                       GestureDetector(
                         onTap: () => _go(context, const ProfileEditScreen()),
                         child: CircleAvatar(
@@ -164,8 +157,7 @@ class _HomeTab extends StatelessWidget {
                         ],
                       )),
                       IconButton(
-                        icon: const Icon(Icons.notifications_outlined,
-                            color: Colors.white),
+                        icon: const Icon(Icons.notifications_outlined, color: Colors.white),
                         onPressed: () => _go(context, const NoticesScreen()),
                       ),
                     ]),
@@ -180,7 +172,6 @@ class _HomeTab extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
 
-                // ── CLASS MANAGEMENT ──────────────────────────────────
                 _sectionHead('📋 Class Management', 'Manage your students'),
                 const SizedBox(height: 12),
                 _grid([
@@ -192,25 +183,19 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, const MonthlyAssessmentScreen())),
                   _card(Icons.grade_rounded, 'Enter\nMarks',
                       const Color(0xFFD97706),
-                      // Class Tests: Class Test 1, 2, 3
-                      () => _go(context, const EnterMarksScreen(
-                          examCategory: 'classTests'))),
-                  // ✅ My Students
+                      () => _go(context, const EnterMarksScreen(examCategory: 'classTests'))),
                   _card(Icons.people_rounded, 'My\nStudents',
                       const Color(0xFF059669),
                       () => _go(context, const MyStudentsScreen())),
                   _card(Icons.event_note_rounded, 'Leave\nRequests',
                       const Color(0xFF7C3AED),
                       () => _go(context, const LeaveScreen())),
-                  // Formal Exams: F1-F6, Half Yearly, Pre-Boards, Annual
                   _card(Icons.bar_chart_rounded, 'Formal\nExams',
                       const Color(0xFF0891B2),
-                      () => _go(context, const EnterMarksScreen(
-                          examCategory: 'formal'))),
+                      () => _go(context, const EnterMarksScreen(examCategory: 'formal'))),
                 ]),
                 const SizedBox(height: 20),
 
-                // ── ACADEMICS ─────────────────────────────────────────
                 _sectionHead('📚 Academics', 'Teaching resources'),
                 const SizedBox(height: 12),
                 _grid([
@@ -219,14 +204,10 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, const BooksScreen())),
                   _card(Icons.assignment_rounded, 'Homework',
                       const Color(0xFF7C3AED),
-                      // ✅ FIX: now uses new homework_screen.dart
                       () => _go(context, const HomeworkScreen())),
                   _card(Icons.checklist_rounded, 'Syllabus',
                       const Color(0xFFDC2626),
                       () => _go(context, const SyllabusScreen())),
-                  // ✅ FIX: "Study Notes" was → StudyMaterialScreen
-                  //         now correctly → StudyNotesScreen
-                  // ✅ Study Notes — has both browse + upload tabs inside
                   _card(Icons.folder_open_rounded, 'Study\nNotes',
                       const Color(0xFF0891B2),
                       () => _go(context, const StudyMaterialScreen())),
@@ -236,22 +217,18 @@ class _HomeTab extends StatelessWidget {
                   _card(Icons.play_circle_rounded, 'Videos',
                       const Color(0xFFDC2626),
                       () => _go(context, const VideosScreen())),
-                  // ✅ FIX: Quiz → QuizListScreen
                   _card(Icons.quiz_rounded, 'Quiz',
                       const Color(0xFFD97706),
                       () => _go(context, const QuizListScreen())),
-                  // ✅ Exam Dates → dedicated ExamScheduleScreen
                   _card(Icons.event_rounded, 'Exam\nDates',
                       const Color(0xFFDC2626),
                       () => _go(context, const ExamScheduleScreen())),
                 ]),
                 const SizedBox(height: 20),
 
-                // ── TOOLS ─────────────────────────────────────────────
                 _sectionHead('🛠️ Tools', 'Helpful resources'),
                 const SizedBox(height: 12),
                 _grid([
-                  // ✅ FIX: Timetable — removed invalid isTeacher param
                   _card(Icons.table_chart_rounded, 'Timetable',
                       AppColors.primary,
                       () => _go(context, const TimetableScreen())),
@@ -266,7 +243,7 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, const EmergencyContactsScreen())),
                   _card(Icons.smart_toy_rounded, 'AI Tutor',
                       const Color(0xFF7C3AED),
-                      () => _go(context, const AiChatbotScreen())),
+                      () => _go(context, AIChatbotScreen())),
                   _card(Icons.translate_rounded, 'Dictionary',
                       const Color(0xFF2563EB),
                       () => _go(context, const DictionaryScreen())),
@@ -284,8 +261,7 @@ class _HomeTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: GoogleFonts.poppins(
-              fontSize: 16, fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary)),
+              fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           Text(subtitle, style: GoogleFonts.poppins(
               fontSize: 12, color: AppColors.textSecondary)),
         ],
@@ -331,7 +307,6 @@ class _HomeTab extends StatelessWidget {
       );
 }
 
-// ─── Profile Tab ──────────────────────────────────────────────────────────────
 class _ProfileTab extends StatelessWidget {
   final dynamic user;
   const _ProfileTab({required this.user});
@@ -351,8 +326,7 @@ class _ProfileTab extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('My Profile',
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w700, color: Colors.white)),
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: Colors.white)),
         backgroundColor: AppColors.teacherColor,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -380,8 +354,7 @@ class _ProfileTab extends StatelessWidget {
                         onPressed: () => Navigator.pop(context, true),
                         child: Text('Sign Out',
                             style: GoogleFonts.poppins(
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w700))),
+                                color: AppColors.error, fontWeight: FontWeight.w700))),
                   ],
                 ),
               );
@@ -402,8 +375,6 @@ class _ProfileTab extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(children: [
           const SizedBox(height: 8),
-
-          // Avatar + camera
           Stack(children: [
             CircleAvatar(
               radius: 54,
@@ -430,17 +401,14 @@ class _ProfileTab extends StatelessWidget {
                         color: AppColors.teacherColor.withValues(alpha: 0.4),
                         blurRadius: 8)],
                   ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      size: 16, color: Colors.white),
+                  child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                 ),
               ),
             ),
           ]),
           const SizedBox(height: 14),
-
           Text(name, style: GoogleFonts.poppins(
-              fontSize: 22, fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary)),
+              fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
           const SizedBox(height: 3),
           Text(user?.email ?? '', style: GoogleFonts.poppins(
               fontSize: 13, color: AppColors.textSecondary)),
@@ -456,8 +424,6 @@ class _ProfileTab extends StatelessWidget {
                 color: AppColors.teacherColor)),
           ),
           const SizedBox(height: 20),
-
-          // Edit button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -469,29 +435,23 @@ class _ProfileTab extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.teacherColor,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 3,
                 shadowColor: AppColors.teacherColor.withValues(alpha: 0.4),
               ),
             ),
           ),
           const SizedBox(height: 20),
-
-          // Info rows
           _row('Email', user?.email ?? '—', Icons.email_rounded),
-          _row('Phone', (user?.phone ?? '').isNotEmpty ? user!.phone : '—',
-              Icons.phone_rounded),
+          _row('Phone', (user?.phone ?? '').isNotEmpty ? user!.phone : '—', Icons.phone_rounded),
           _row('Role', 'Teacher', Icons.school_rounded),
           _row('Status', 'Approved ✅', Icons.verified_rounded),
           if ((user?.subject as String? ?? '').isNotEmpty)
             _row('Subject', user!.subject as String, Icons.subject_rounded),
           if ((user?.qualification as String? ?? '').isNotEmpty)
-            _row('Qualification', user!.qualification as String,
-                Icons.workspace_premium_rounded),
+            _row('Qualification', user!.qualification as String, Icons.workspace_premium_rounded),
           if ((user?.employeeId as String? ?? '').isNotEmpty)
             _row('Employee ID', user!.employeeId as String, Icons.badge_rounded),
-
           const SizedBox(height: 30),
         ]),
       ),
@@ -522,8 +482,7 @@ class _ProfileTab extends StatelessWidget {
               Text(label, style: GoogleFonts.poppins(
                   fontSize: 11, color: AppColors.textSecondary)),
               Text(value, style: GoogleFonts.poppins(
-                  fontSize: 14, fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary)),
+                  fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
             ],
           )),
         ]),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ NEW
 import 'package:myapp/firebase_options.dart';
 import 'package:myapp/models/user_model.dart';
 import 'package:myapp/services/auth_provider.dart';
@@ -16,6 +17,7 @@ import 'screens/auth/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  await dotenv.load(fileName: '.env'); // ✅ Load API keys from .env
   await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform);
   runApp(const BDPHSApp());
@@ -46,17 +48,14 @@ class AppRouter extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AppAuthProvider>();
 
-    // Show splash while loading
     if (auth.isLoading) return const _SplashScreen();
 
-    // Show login if not signed in
     if (!auth.isLoggedIn || auth.currentUser == null) {
       return const LoginScreen();
     }
 
     final user = auth.currentUser!;
 
-    // Route by role
     if (user.role == UserRole.admin) return const AdminDashboard();
 
     if (user.role == UserRole.teacher) {
@@ -70,7 +69,6 @@ class AppRouter extends StatelessWidget {
       );
     }
 
-    // Student
     if (user.approvalStatus == ApprovalStatus.approved) {
       return const StudentDashboard();
     }
@@ -101,25 +99,18 @@ class _SplashScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo
               Container(
-                width: 130,
-                height: 130,
+                width: 130, height: 130,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+                  shape: BoxShape.circle, color: Colors.white,
+                  boxShadow: [BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 24, offset: const Offset(0, 10),
+                  )],
                 ),
                 child: ClipOval(
                   child: Image.asset(
-                    'assets/images/logo.png',
-                    fit: BoxFit.cover,
+                    'assets/images/logo.png', fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       color: const Color(0xFF1B8A3C),
                       child: const Icon(Icons.school_rounded,
@@ -129,65 +120,31 @@ class _SplashScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 28),
-
-              // School name
-              const Text(
-                'BLOOMING DALE',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: 3,
-                ),
-              ),
-              const Text(
-                'PUBLIC HIGH SCHOOL',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white60,
-                  letterSpacing: 5,
-                ),
-              ),
+              const Text('BLOOMING DALE',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800,
+                      color: Colors.white, letterSpacing: 3)),
+              const Text('PUBLIC HIGH SCHOOL',
+                  style: TextStyle(fontSize: 11, color: Colors.white60,
+                      letterSpacing: 5)),
               const SizedBox(height: 10),
-
-              // Gold line
-              Container(
-                width: 70,
-                height: 2,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8A020),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+              Container(width: 70, height: 2,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFE8A020),
+                      borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 10),
-              const Text(
-                'Student Management System',
-                style: TextStyle(fontSize: 13, color: Colors.white54),
-              ),
-              const Text(
-                'Est. 1982',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFE8A020),
-                    fontWeight: FontWeight.w600),
-              ),
+              const Text('Student Management System',
+                  style: TextStyle(fontSize: 13, color: Colors.white54)),
+              const Text('Est. 1982',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFE8A020),
+                      fontWeight: FontWeight.w600)),
               const SizedBox(height: 48),
-
-              // Loading spinner
-              const SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation(Color(0xFFE8A020)),
-                  strokeWidth: 2.5,
-                ),
-              ),
+              const SizedBox(width: 32, height: 32,
+                  child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Color(0xFFE8A020)),
+                      strokeWidth: 2.5)),
               const SizedBox(height: 14),
-              const Text(
-                'Loading...',
-                style: TextStyle(fontSize: 12, color: Colors.white38),
-              ),
+              const Text('Loading...',
+                  style: TextStyle(fontSize: 12, color: Colors.white38)),
             ],
           ),
         ),
@@ -201,17 +158,12 @@ class _PendingScreen extends StatelessWidget {
   final String role;
   final bool isRejected;
   final String userName;
-
   const _PendingScreen({
-    required this.role,
-    required this.isRejected,
-    required this.userName,
-  });
+    required this.role, required this.isRejected, required this.userName});
 
   @override
   Widget build(BuildContext context) {
     final auth = context.read<AppAuthProvider>();
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
@@ -222,32 +174,24 @@ class _PendingScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 110,
-                  height: 110,
+                  width: 110, height: 110,
                   decoration: const BoxDecoration(
                       shape: BoxShape.circle, color: Colors.white24),
                   child: Icon(
-                    isRejected
-                        ? Icons.cancel_rounded
+                    isRejected ? Icons.cancel_rounded
                         : Icons.hourglass_empty_rounded,
                     size: 56,
                     color: isRejected
-                        ? Colors.redAccent
-                        : const Color(0xFFE8A020),
+                        ? Colors.redAccent : const Color(0xFFE8A020),
                   ),
                 ),
                 const SizedBox(height: 28),
-                Text(
-                  isRejected ? 'Account Rejected' : 'Pending Approval',
-                  style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white),
-                ),
+                Text(isRejected ? 'Account Rejected' : 'Pending Approval',
+                    style: const TextStyle(fontSize: 26,
+                        fontWeight: FontWeight.w700, color: Colors.white)),
                 const SizedBox(height: 8),
                 Text('Hello, $userName',
-                    style: const TextStyle(
-                        fontSize: 14, color: Colors.white70)),
+                    style: const TextStyle(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(18),
@@ -258,11 +202,14 @@ class _PendingScreen extends StatelessWidget {
                   ),
                   child: Text(
                     isRejected
-                        ? 'Your $role account has been rejected. Please contact ${role == "Student" ? "your teacher" : "the administrator"}.'
-                        : 'Your $role registration is pending approval by ${role == "Student" ? "your teacher" : "the administrator"}.\n\nPlease wait for approval to access the app.',
+                        ? 'Your $role account has been rejected. Please contact '
+                          '${role == "Student" ? "your teacher" : "the administrator"}.'
+                        : 'Your $role registration is pending approval by '
+                          '${role == "Student" ? "your teacher" : "the administrator"}.'
+                          '\n\nPlease wait for approval to access the app.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 14, color: Colors.white, height: 1.6),
+                    style: const TextStyle(fontSize: 14,
+                        color: Colors.white, height: 1.6),
                   ),
                 ),
                 const SizedBox(height: 36),
@@ -273,8 +220,7 @@ class _PendingScreen extends StatelessWidget {
                     icon: const Icon(Icons.logout_rounded,
                         color: AppColors.primary),
                     label: const Text('Sign Out',
-                        style: TextStyle(
-                            fontSize: 15,
+                        style: TextStyle(fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary)),
                     style: ElevatedButton.styleFrom(

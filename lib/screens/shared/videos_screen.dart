@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_provider.dart';
 import '../../services/school_service.dart';
@@ -12,6 +13,32 @@ import '../../widgets/custom_widgets.dart';
 
 class VideosScreen extends StatelessWidget {
   const VideosScreen({super.key});
+
+  // ✅ Open video URL using url_launcher
+  Future<void> _openVideo(BuildContext context, String url) async {
+    if (url.trim().isEmpty) return;
+    String fullUrl = url.trim();
+    if (!fullUrl.startsWith('http')) fullUrl = 'https://$fullUrl';
+    final uri = Uri.tryParse(fullUrl);
+    if (uri == null) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid video link'),
+              backgroundColor: AppColors.error));
+      return;
+    }
+    try {
+      final launched = await launchUrl(uri,
+          mode: LaunchMode.externalApplication);
+      if (!launched && context.mounted) {
+        await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      }
+    } catch (_) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Could not open video. Try copying the link.'),
+              backgroundColor: AppColors.error));
+    }
+  }
 
   void _showAddVideo(BuildContext context, String uid, String name) {
     final titleCtrl = TextEditingController();
@@ -42,7 +69,6 @@ class VideosScreen extends StatelessWidget {
           Expanded(child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Type selector
               Row(children: [
                 _TypeBtn(label: '▶ YouTube', value: 'youtube', selected: type, onTap: () => setModal(() => type = 'youtube'), color: Colors.red),
                 const SizedBox(width: 8),
@@ -128,33 +154,37 @@ class VideosScreen extends StatelessWidget {
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)],
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  // Thumbnail
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: Container(
-                      height: 160,
-                      color: Colors.black87,
-                      child: Stack(fit: StackFit.expand, children: [
-                        if (v.youtubeId != null)
-                          Image.network(
-                            'https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _VideoPlaceholder(type: v.videoType),
-                          )
-                        else _VideoPlaceholder(type: v.videoType),
-                        Center(child: Container(
-                          width: 56, height: 56,
-                          decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.9), shape: BoxShape.circle),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
-                        )),
-                        Positioned(top: 8, right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: _typeColor(v.videoType).withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
-                            child: Text(_typeLabel(v.videoType), style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+                  // ✅ Thumbnail — now TAPPABLE (GestureDetector wraps entire area)
+                  GestureDetector(
+                    onTap: () => _openVideo(context, v.url),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: Container(
+                        height: 160,
+                        color: Colors.black87,
+                        child: Stack(fit: StackFit.expand, children: [
+                          if (v.youtubeId != null)
+                            Image.network(
+                              'https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _VideoPlaceholder(type: v.videoType),
+                            )
+                          else _VideoPlaceholder(type: v.videoType),
+                          // ✅ Play button — now works because parent has onTap
+                          Center(child: Container(
+                            width: 56, height: 56,
+                            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.9), shape: BoxShape.circle),
+                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                          )),
+                          Positioned(top: 8, right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: _typeColor(v.videoType).withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
+                              child: Text(_typeLabel(v.videoType), style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+                            ),
                           ),
-                        ),
-                      ]),
+                        ]),
+                      ),
                     ),
                   ),
                   Padding(
@@ -175,29 +205,34 @@ class VideosScreen extends StatelessWidget {
                       ]),
                       const SizedBox(height: 10),
                       Row(children: [
+                        // ✅ "Open Video" button — launches URL directly
                         Expanded(child: ElevatedButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: v.url));
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Link copied! Open in YouTube/Browser'),
-                              backgroundColor: AppColors.success,
-                            ));
-                          },
+                          onPressed: () => _openVideo(context, v.url),
                           icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.white),
-                          label: Text('Copy Link', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                          label: Text('Open Video', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         )),
-                        if (canPost) ...[
-                          const SizedBox(width: 8),
+                        const SizedBox(width: 8),
+                        // Copy link button
+                        IconButton(
+                          icon: const Icon(Icons.copy_rounded, color: AppColors.textSecondary, size: 20),
+                          tooltip: 'Copy link',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: v.url));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('✅ Link copied!'),
+                                    duration: Duration(seconds: 1)));
+                          },
+                        ),
+                        if (canPost)
                           IconButton(
                             icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
                             onPressed: () => SchoolService().deleteVideo(v.id),
                           ),
-                        ],
                       ]),
                     ]),
                   ),

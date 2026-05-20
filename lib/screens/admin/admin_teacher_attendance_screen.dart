@@ -80,10 +80,81 @@ class _MarkTabState extends State<_MarkTab> {
   String get _todayLabel =>
       DateFormat('EEEE, dd MMMM yyyy').format(_today);
 
+  // ✅ Sunday or marked holiday
+  bool get _isSunday => _today.weekday == DateTime.sunday;
+  bool _isHoliday = false;
+  String _holidayName = '';
+
   @override
   void initState() {
     super.initState();
-    _loadTeachers();
+    _checkHoliday();
+    if (!_isSunday) _loadTeachers();
+  }
+
+  Future<void> _checkHoliday() async {
+    // Check if today is marked as holiday in Firestore
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('school_holidays')
+          .where('date', isEqualTo: Timestamp.fromDate(_today))
+          .get();
+      if (snap.docs.isNotEmpty) {
+        setState(() {
+          _isHoliday = true;
+          _holidayName = snap.docs.first.data()['name'] ?? 'Holiday';
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _markHoliday() async {
+    final nameCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Mark Holiday',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+        content: TextField(
+          controller: nameCtrl,
+          decoration: InputDecoration(
+            hintText: 'Holiday name (e.g. Diwali)',
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+          style: GoogleFonts.poppins(),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel', style: GoogleFonts.poppins())),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626)),
+              child: Text('Mark Holiday',
+                  style: GoogleFonts.poppins(
+                      color: Colors.white, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await FirebaseFirestore.instance.collection('school_holidays').add({
+        'date': Timestamp.fromDate(_today),
+        'name': nameCtrl.text.trim().isEmpty
+            ? 'Holiday' : nameCtrl.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      setState(() {
+        _isHoliday = true;
+        _holidayName = nameCtrl.text.trim().isEmpty
+            ? 'Holiday' : nameCtrl.text.trim();
+      });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Holiday marked!'),
+              backgroundColor: AppColors.success));
+    }
   }
 
   Future<void> _loadTeachers() async {
@@ -187,6 +258,54 @@ class _MarkTabState extends State<_MarkTab> {
     }
   }
 
+  Widget _holidayBanner(String title, String subtitle,
+      {bool isAutomatic = false}) {
+    return Center(child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(
+          width: 100, height: 100,
+          decoration: BoxDecoration(
+            color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.beach_access_rounded,
+              size: 50, color: Color(0xFFDC2626)),
+        ),
+        const SizedBox(height: 20),
+        Text(title, style: GoogleFonts.poppins(
+            fontSize: 22, fontWeight: FontWeight.w800,
+            color: const Color(0xFFDC2626)),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Text(subtitle, style: GoogleFonts.poppins(
+            fontSize: 14, color: AppColors.textSecondary),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 6),
+        Text(DateFormat('EEEE, dd MMMM yyyy').format(_today),
+            style: GoogleFonts.poppins(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: AppColors.textHint)),
+        if (isAutomatic) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD97706).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: const Color(0xFFD97706).withValues(alpha: 0.3)),
+            ),
+            child: Text('No attendance needed on Sundays',
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: const Color(0xFFD97706),
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ]),
+    ));
+  }
+
   void _toggleAll(bool present) {
     setState(() {
       for (final t in _teachers) {
@@ -197,6 +316,17 @@ class _MarkTabState extends State<_MarkTab> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Sunday — auto holiday
+    if (_isSunday) {
+      return _holidayBanner('🌟 Sunday Holiday',
+          'Today is Sunday — school holiday', isAutomatic: true);
+    }
+    // ✅ Marked holiday
+    if (_isHoliday) {
+      return _holidayBanner('🎉 $_holidayName',
+          'This day has been marked as a school holiday');
+    }
+
     if (_loading) {
       return const Center(child: CircularProgressIndicator(
           color: Color(0xFFD97706)));
@@ -235,7 +365,24 @@ class _MarkTabState extends State<_MarkTab> {
                 style: GoogleFonts.poppins(
                     fontSize: 13, fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary))),
-            if (_alreadySaved)
+            // ✅ Holiday button
+            TextButton.icon(
+              onPressed: _markHoliday,
+              icon: const Icon(Icons.beach_access_rounded,
+                  size: 14, color: Color(0xFFDC2626)),
+              label: Text('Holiday',
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: const Color(0xFFDC2626))),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.08),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+              ),
+            ),
+            if (_alreadySaved) ...[
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -248,6 +395,7 @@ class _MarkTabState extends State<_MarkTab> {
                         fontSize: 11, fontWeight: FontWeight.w700,
                         color: AppColors.success)),
               ),
+            ],
           ]),
           const SizedBox(height: 12),
 
