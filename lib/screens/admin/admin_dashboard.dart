@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../shared/ai_chatbot_screen.dart';
 
 import '../../services/auth_provider.dart';
 import '../../theme/app_theme.dart';
@@ -16,9 +15,10 @@ import '../shared/fee_screen.dart';
 import '../shared/more_screens.dart' hide LeaderboardScreen;
 import '../shared/leave_screen.dart';
 import '../shared/exam_screen.dart' hide LeaveScreen;
-import '../shared/exam_schedule_screen.dart';
+import '../shared/exam_schedule_screen.dart'; // ✅ Proper exam screen
 import '../shared/books_screen.dart';
 import '../shared/videos_screen.dart';
+import '../shared/ai_chatbot_screen.dart';
 import '../shared/progress_screen.dart';
 import '../shared/leaderboard_screen.dart';
 import '../shared/syllabus_gallery_material.dart';
@@ -30,7 +30,10 @@ import 'approve_teachers_screen.dart';
 import 'all_students_screen.dart';
 import 'all_teachers_screen.dart';
 import 'admin_teacher_attendance_screen.dart';
+import '../shared/chat_screen.dart';
+import '../shared/meeting_screen.dart';
 
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
   @override
@@ -104,6 +107,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 }
 
+// ─── Home Tab ────────────────────────────────────────────────────────────────
 class _HomeTab extends StatelessWidget {
   final VoidCallback onSignOut;
   const _HomeTab({required this.onSignOut});
@@ -169,6 +173,7 @@ class _HomeTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── APPROVALS ────────────────────────────────────────────
             _sectionHeader('✅ Pending Approvals', 'Review new registrations'),
             const SizedBox(height: 14),
             Row(children: [
@@ -195,13 +200,12 @@ class _HomeTab extends StatelessWidget {
             ]),
             const SizedBox(height: 24),
 
+            // ── STUDENT MANAGEMENT ───────────────────────────────────
             _sectionHeader('👨‍🎓 Student Management', 'Manage all students'),
             const SizedBox(height: 14),
             _buildGrid([
               _FCard(Icons.people_rounded, 'All Students', AppColors.studentColor,
                   () => _go(context, const AllStudentsScreen())),
-              _FCard(Icons.search_rounded, 'Search Student', AppColors.primary,
-                  () => _go(context, const SearchStudentsScreen())),
               _FCard(Icons.account_balance_wallet_rounded, 'Fee',
                   const Color(0xFF059669),
                   () => _go(context, const FeeScreen())),
@@ -215,6 +219,7 @@ class _HomeTab extends StatelessWidget {
             ]),
             const SizedBox(height: 24),
 
+            // ── TEACHER MANAGEMENT ───────────────────────────────────
             _sectionHeader('👨‍🏫 Teacher Management', 'Manage all teachers'),
             const SizedBox(height: 14),
             _buildGrid([
@@ -227,12 +232,25 @@ class _HomeTab extends StatelessWidget {
               _FCard(Icons.play_circle_rounded, 'Videos', const Color(0xFFDC2626),
                   () => _go(context, const VideosScreen())),
               _FCard(Icons.smart_toy_rounded, 'AI Tutor', const Color(0xFF7C3AED),
-                  () => _go(context, AIChatbotScreen())),
+                  () => _go(context, AiChatbotScreen())),
               _FCard(Icons.notifications_rounded, 'Notices', AppColors.primary,
                   () => _go(context, const NoticesScreen())),
             ]),
             const SizedBox(height: 24),
 
+            // ── COMMUNICATION ────────────────────────────────────────
+            _sectionHeader('💬 Communication', 'Chat & Class Meetings'),
+            const SizedBox(height: 14),
+            _buildGrid([
+              _FCard(Icons.chat_rounded, 'Class Chat', const Color(0xFF059669),
+                  () => _go(context, const ChatScreen())),
+              _FCard(Icons.video_call_rounded, 'Meetings',
+                  const Color(0xFF2563EB),
+                  () => _go(context, const MeetingScreen())),
+            ]),
+            const SizedBox(height: 24),
+
+            // ── SCHOOL MANAGEMENT ────────────────────────────────────
             _sectionHeader('🏫 School Management', 'School-wide controls'),
             const SizedBox(height: 14),
             _buildGrid([
@@ -280,6 +298,7 @@ class _HomeTab extends StatelessWidget {
       );
 }
 
+// ─── Approval Card ───────────────────────────────────────────────────────────
 class _ApprovalCard extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -372,6 +391,7 @@ class _ApprovalCard extends StatelessWidget {
   }
 }
 
+// ─── Feature Card ─────────────────────────────────────────────────────────────
 class _FCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -418,6 +438,7 @@ class _FCard extends StatelessWidget {
       );
 }
 
+// ─── Profile Tab ──────────────────────────────────────────────────────────────
 class _ProfileTab extends StatelessWidget {
   final VoidCallback onSignOut;
   const _ProfileTab({required this.onSignOut});
@@ -536,6 +557,7 @@ class _ProfileTab extends StatelessWidget {
       );
 }
 
+// ─── Admin Attendance View ────────────────────────────────────────────────────
 class AdminAttendanceViewScreen extends StatefulWidget {
   const AdminAttendanceViewScreen({super.key});
 
@@ -567,6 +589,8 @@ class _AdminAttendanceViewScreenState extends State<AdminAttendanceViewScreen> {
       final start = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final end = start.add(const Duration(days: 1));
 
+      // Composite index on attendance: className (ASC) + date (ASC)
+      // Index created at Firebase Console → Firestore → Indexes
       final snap = await FirebaseFirestore.instance
           .collection('attendance')
           .where('className', isEqualTo: _selectedClass)
@@ -644,6 +668,7 @@ class _AdminAttendanceViewScreenState extends State<AdminAttendanceViewScreen> {
         ],
       ),
       body: Column(children: [
+        // ── Filters ──────────────────────────────────────────────────
         Container(
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -692,6 +717,7 @@ class _AdminAttendanceViewScreenState extends State<AdminAttendanceViewScreen> {
           ]),
         ),
 
+        // ── Summary Cards ─────────────────────────────────────────────
         if (!_loading && _records.isNotEmpty)
           Container(
             color: Colors.white,
@@ -742,6 +768,7 @@ class _AdminAttendanceViewScreenState extends State<AdminAttendanceViewScreen> {
 
         const Divider(height: 1),
 
+        // ── Student List ──────────────────────────────────────────────
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -830,6 +857,7 @@ class _AdminAttendanceViewScreenState extends State<AdminAttendanceViewScreen> {
   }
 }
 
+// ── Summary Box ───────────────────────────────────────────────────────────────
 class _SummaryBox extends StatelessWidget {
   final String label;
   final int count;
@@ -858,6 +886,7 @@ class _SummaryBox extends StatelessWidget {
       );
 }
 
+// ── Empty State ───────────────────────────────────────────────────────────────
 class _EmptyAttendance extends StatelessWidget {
   final String className, date;
   const _EmptyAttendance({required this.className, required this.date});
