@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_provider.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_widgets.dart';
 
@@ -47,15 +48,28 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     final result = await context.read<AppAuthProvider>().registerTeacher(
-      email: _emailCtrl.text, password: _passwordCtrl.text,
-      fullName: _fullNameCtrl.text, phone: _phoneCtrl.text,
-      address: _addressCtrl.text, qualification: _qualification ?? _qualificationCtrl.text,
-      subject: _subject ?? _subjectCtrl.text, employeeId: _empIdCtrl.text,
+      email: _emailCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      fullName: _fullNameCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      address: _addressCtrl.text.trim(),
+      qualification: _qualification ?? _qualificationCtrl.text.trim(),
+      subject: _subject ?? _subjectCtrl.text.trim(),
+      employeeId: _empIdCtrl.text.trim(),
       photoFile: _photoFile,
     );
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (result.success) {
+      // ── Send registration confirmation email ────────────────────────────
+      NotificationService.sendTeacherRegistrationEmail(
+        toEmail: _emailCtrl.text.trim(),
+        teacherName: _fullNameCtrl.text.trim(),
+        employeeId: _empIdCtrl.text.trim(),
+        subject: _subject ?? _subjectCtrl.text.trim(),
+        qualification: _qualification ?? _qualificationCtrl.text.trim(),
+      );
+      // ───────────────────────────────────────────────────────────────────
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -66,7 +80,11 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle, color: AppColors.success, size: 60),
+                Container(
+                  width: 72, height: 72,
+                  decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                  child: const Icon(Icons.check_rounded, color: Colors.white, size: 40),
+                ),
                 const SizedBox(height: 16),
                 Text('Registration Submitted!',
                   style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700),
@@ -76,6 +94,28 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
                 Text('Your account is pending admin approval.',
                   style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                // Email notification
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.email_outlined, color: AppColors.info, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'A confirmation email has been sent to ${_emailCtrl.text.trim()}',
+                          style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
                 GradientButton(
@@ -98,7 +138,13 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Teacher Registration')),
+      appBar: AppBar(
+        title: Text('Teacher Registration',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -114,7 +160,7 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundColor: AppColors.teacherColor.withOpacity(0.1),
+                        backgroundColor: AppColors.teacherColor.withValues(alpha: 0.1),
                         backgroundImage: _photoFile != null ? FileImage(_photoFile!) : null,
                         child: _photoFile == null
                             ? const Icon(Icons.person, size: 48, color: AppColors.teacherColor)
@@ -184,6 +230,30 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
                 onChanged: (v) => setState(() => _subject = v),
                 validator: (v) => v == null ? 'Required' : null,
               ),
+              const SizedBox(height: 12),
+
+              // Info note
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.email_outlined, color: AppColors.info, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'A confirmation email will be sent to your registered email after submission.',
+                        style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 28),
               GradientButton(
                 text: 'Submit Registration',
@@ -202,7 +272,8 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
 
   Widget _sectionLabel(String label) => Row(
     children: [
-      Container(width: 3, height: 16, decoration: BoxDecoration(color: AppColors.teacherColor, borderRadius: BorderRadius.circular(2))),
+      Container(width: 3, height: 16,
+        decoration: BoxDecoration(color: AppColors.teacherColor, borderRadius: BorderRadius.circular(2))),
       const SizedBox(width: 8),
       Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
     ],
@@ -213,7 +284,9 @@ class _TeacherRegistrationScreenState extends State<TeacherRegistrationScreen> {
     prefixIcon: Icon(icon, size: 20),
     filled: true, fillColor: Colors.white,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.divider)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.divider)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.primary, width: 2)),
   );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/user_model.dart';
 import '../../services/auth_provider.dart';
@@ -33,7 +34,6 @@ class _LoginScreenState extends State<LoginScreen>
   Animation<double>? _fadeAnim;
   Animation<Offset>? _slideAnim;
 
-  // ── Design tokens ──────────────────────────────────────────
   static const _darkNavy  = Color(0xFF0D1B2E);
   static const _accent    = Color(0xFF1B4F8A);
   static const _gold      = Color(0xFFC8A84B);
@@ -68,30 +68,226 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  // ── FORGOT PASSWORD ──────────────────────────────────────────────────────
+  Future<void> _showForgotPassword() async {
+    final resetEmailCtrl = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    final formKey = GlobalKey<FormState>();
+    bool sending = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Column(
+            children: [
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lock_reset_rounded,
+                    color: _accent, size: 28),
+              ),
+              const SizedBox(height: 12),
+              Text('Reset Password',
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 20, fontWeight: FontWeight.w700, color: _textDark),
+                  textAlign: TextAlign.center),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Enter your registered email address. We will send you a password reset link.',
+                  style: GoogleFonts.dmSans(fontSize: 13, color: _textMuted, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: resetEmailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  style: GoogleFonts.dmSans(fontSize: 14, color: _textDark),
+                  decoration: InputDecoration(
+                    hintText: 'your@email.com',
+                    hintStyle: GoogleFonts.dmSans(color: _textMuted),
+                    prefixIcon: const Icon(Icons.email_outlined,
+                        color: _accent, size: 20),
+                    filled: true,
+                    fillColor: _inputBg,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _accent, width: 1.5)),
+                    errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.red)),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Email is required';
+                    if (!RegExp(r'^[\w\.\-]+@[\w\-]+\.\w+$').hasMatch(v.trim())) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: sending ? null : () => Navigator.pop(ctx),
+              child: Text('Cancel',
+                  style: GoogleFonts.dmSans(color: _textMuted, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: sending
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setS(() => sending = true);
+                      try {
+                        await FirebaseAuth.instance.sendPasswordResetEmail(
+                          email: resetEmailCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          _showResetSuccess(resetEmailCtrl.text.trim());
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        setS(() => sending = false);
+                        String msg = 'Something went wrong. Please try again.';
+                        if (e.code == 'user-not-found') {
+                          msg = 'No account found with this email address.';
+                        } else if (e.code == 'invalid-email') {
+                          msg = 'Invalid email address.';
+                        } else if (e.code == 'too-many-requests') {
+                          msg = 'Too many attempts. Please try again later.';
+                        }
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                            content: Text(msg, style: GoogleFonts.dmSans()),
+                            backgroundColor: Colors.red.shade700,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ));
+                        }
+                      } catch (e) {
+                        setS(() => sending = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _btnBlue,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: sending
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('Send Reset Link',
+                      style: GoogleFonts.dmSans(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showResetSuccess(String email) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72, height: 72,
+              decoration: const BoxDecoration(
+                  color: Color(0xFF22c55e), shape: BoxShape.circle),
+              child: const Icon(Icons.mark_email_read_rounded,
+                  color: Colors.white, size: 36),
+            ),
+            const SizedBox(height: 16),
+            Text('Email Sent!',
+                style: GoogleFonts.playfairDisplay(
+                    fontSize: 20, fontWeight: FontWeight.w700, color: _textDark),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 10),
+            Text(
+              'Password reset link sent to:\n$email',
+              style: GoogleFonts.dmSans(fontSize: 13, color: _textMuted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Text(
+                '⚠️ Check your spam/junk folder if you don\'t see it in inbox. Link expires in 1 hour.',
+                style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF92400E)),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _btnBlue,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+              ),
+              child: Text('OK, Got it!',
+                  style: GoogleFonts.dmSans(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── LOGIN ────────────────────────────────────────────────────────────────
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _loading = true);
-
-    // Capture auth before async gap
     final auth = context.read<AppAuthProvider>();
-
     final result = await auth.login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
-
     if (!mounted) return;
-
     if (!result.success) {
-      // Show the specific Firebase error (wrong password, no account, etc.)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            result.error ?? 'Login failed. Please try again.',
-            style: GoogleFonts.dmSans(fontSize: 14),
-          ),
+          content: Text(result.error ?? 'Login failed. Please try again.',
+              style: GoogleFonts.dmSans(fontSize: 14)),
           backgroundColor: Colors.red.shade700,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -101,18 +297,9 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() => _loading = false);
       return;
     }
-
-    // ── Success: navigate based on role ──────────────────────────────────────
-    // We navigate manually here because SplashScreen used Navigator.pushReplacement
-    // to show LoginScreen, which means AppRouter is underneath and can't rebuild us.
     final user = auth.currentUser;
-    if (user == null) {
-      setState(() => _loading = false);
-      return;
-    }
-
+    if (user == null) { setState(() => _loading = false); return; }
     Widget destination;
-
     if (user.role == UserRole.admin) {
       destination = const AdminDashboard();
     } else if (user.role == UserRole.teacher) {
@@ -126,7 +313,6 @@ class _LoginScreenState extends State<LoginScreen>
           : _buildPendingScreen(context, auth, 'Student', user.fullName,
               user.approvalStatus == ApprovalStatus.rejected);
     }
-
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => destination),
       (route) => false,
@@ -155,21 +341,13 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Heading
-                          Text(
-                            'Welcome Back!',
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: _textDark,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
+                          Text('Welcome Back!',
+                              style: GoogleFonts.playfairDisplay(
+                                  fontSize: 28, fontWeight: FontWeight.w700,
+                                  color: _textDark, letterSpacing: -0.3)),
                           const SizedBox(height: 6),
-                          Text(
-                            'Sign in to continue to your account',
-                            style: GoogleFonts.dmSans(fontSize: 14, color: _textMuted),
-                          ),
+                          Text('Sign in to continue to your account',
+                              style: GoogleFonts.dmSans(fontSize: 14, color: _textMuted)),
                           const SizedBox(height: 28),
 
                           // Email
@@ -191,9 +369,8 @@ class _LoginScreenState extends State<LoginScreen>
                               return null;
                             },
                             decoration: _inputDecoration(
-                              hint: 'you@example.com',
-                              icon: Icons.mail_outline_rounded,
-                            ),
+                                hint: 'you@example.com',
+                                icon: Icons.mail_outline_rounded),
                           ),
                           const SizedBox(height: 20),
 
@@ -223,32 +400,25 @@ class _LoginScreenState extends State<LoginScreen>
                                   _hidePassword
                                       ? Icons.visibility_off_outlined
                                       : Icons.visibility_outlined,
-                                  color: _textMuted,
-                                  size: 20,
+                                  color: _textMuted, size: 20,
                                 ),
                               ),
                             ),
                           ),
 
-                          // Forgot password
+                          // ── Forgot Password ── FIXED ──────────────────
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {
-                                // TODO: ForgotPasswordScreen
-                              },
+                              onPressed: _showForgotPassword, // ✅ now works
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.only(top: 10, bottom: 2),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: Text(
-                                'Forgot Password?',
-                                style: GoogleFonts.dmSans(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: _accent,
-                                ),
-                              ),
+                              child: Text('Forgot Password?',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 13, fontWeight: FontWeight.w600,
+                                      color: _accent)),
                             ),
                           ),
 
@@ -262,48 +432,36 @@ class _LoginScreenState extends State<LoginScreen>
                               onPressed: _loading ? null : _login,
                               icon: _loading
                                   ? const SizedBox.shrink()
-                                  : const Icon(Icons.login_rounded, color: Colors.white, size: 20),
+                                  : const Icon(Icons.login_rounded,
+                                      color: Colors.white, size: 20),
                               label: _loading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
+                                  ? const SizedBox(width: 22, height: 22,
                                       child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.5,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Sign In',
+                                          color: Colors.white, strokeWidth: 2.5))
+                                  : Text('Sign In',
                                       style: GoogleFonts.dmSans(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
+                                          fontSize: 16, fontWeight: FontWeight.w700,
+                                          color: Colors.white, letterSpacing: 0.3)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _btnBlue,
                                 disabledBackgroundColor: _btnBlue.withValues(alpha: 0.6),
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
+                                    borderRadius: BorderRadius.circular(14)),
                               ),
                             ),
                           ),
 
                           const SizedBox(height: 28),
 
-                          // Divider
                           Row(
                             children: [
                               const Expanded(child: Divider(thickness: 1)),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  'New to BDPHS?',
-                                  style: GoogleFonts.dmSans(fontSize: 13, color: _textMuted),
-                                ),
+                                child: Text('New to BDPHS?',
+                                    style: GoogleFonts.dmSans(
+                                        fontSize: 13, color: _textMuted)),
                               ),
                               const Expanded(child: Divider(thickness: 1)),
                             ],
@@ -311,33 +469,26 @@ class _LoginScreenState extends State<LoginScreen>
 
                           const SizedBox(height: 20),
 
-                          // Student tile
                           _registrationTile(
                             icon: Icons.school_rounded,
                             iconColor: const Color(0xFF1B4F8A),
                             iconBg: const Color(0xFFE8F0FB),
                             title: 'Student Registration',
                             subtitle: 'Register as a new student',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const StudentRegistrationScreen()),
-                            ),
+                            onTap: () => Navigator.push(context,
+                                MaterialPageRoute(
+                                    builder: (_) => const StudentRegistrationScreen())),
                           ),
                           const SizedBox(height: 12),
-
-                          // Teacher tile
                           _registrationTile(
                             icon: Icons.person_rounded,
                             iconColor: const Color(0xFF1A6B4A),
                             iconBg: const Color(0xFFE3F5EC),
                             title: 'Teacher Registration',
                             subtitle: 'Register as a teacher',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const TeacherRegistrationScreen()),
-                            ),
+                            onTap: () => Navigator.push(context,
+                                MaterialPageRoute(
+                                    builder: (_) => const TeacherRegistrationScreen())),
                           ),
                         ],
                       ),
@@ -352,7 +503,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Dark navy header ───────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -369,106 +519,59 @@ class _LoginScreenState extends State<LoginScreen>
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
           child: Column(
             children: [
-              // Logo with gold ring
               Container(
-                width: 96,
-                height: 96,
+                width: 96, height: 96,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
                   border: Border.all(color: _gold, width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
+                  boxShadow: [BoxShadow(
                       color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                      blurRadius: 20, offset: const Offset(0, 8))],
                 ),
                 child: ClipOval(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Image.asset(
-                      'assets/images/bdphs.png',
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/images/bdphs.png', fit: BoxFit.contain),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-
-              Text(
-                'BLOOMING DALE',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: 3,
-                ),
-              ),
+              Text('BLOOMING DALE',
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 22, fontWeight: FontWeight.w800,
+                      color: Colors.white, letterSpacing: 3)),
               const SizedBox(height: 3),
-
-              Text(
-                'PUBLIC HIGH SCHOOL',
-                style: GoogleFonts.dmSans(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white60,
-                  letterSpacing: 4,
-                ),
-              ),
+              Text('PUBLIC HIGH SCHOOL',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 10, fontWeight: FontWeight.w600,
+                      color: Colors.white60, letterSpacing: 4)),
               const SizedBox(height: 8),
-
-              Text(
-                'Student Management System',
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  color: Colors.white54,
-                  letterSpacing: 0.3,
-                ),
-              ),
+              Text('Student Management System',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13, color: Colors.white54, letterSpacing: 0.3)),
               const SizedBox(height: 12),
-
-              // Est. badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                 decoration: BoxDecoration(
                   border: Border.all(color: _gold.withValues(alpha: 0.55)),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  'Est. 1982',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    color: _gold,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 1,
-                  ),
-                ),
+                child: Text('Est. 1982',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12, color: _gold,
+                        fontWeight: FontWeight.w500, letterSpacing: 1)),
               ),
-
               const SizedBox(height: 14),
-
-              // Tagline
-              Text(
-                '✦  Where Young Minds Bloom  ✦',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white38,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              Text('✦  Where Young Minds Bloom  ✦',
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 12, fontStyle: FontStyle.italic,
+                      color: Colors.white38, letterSpacing: 0.5)),
               const SizedBox(height: 4),
-              Text(
-                'and Bright Futures Begin.',
-                style: GoogleFonts.playfairDisplay(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white38,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              Text('and Bright Futures Begin.',
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 12, fontStyle: FontStyle.italic,
+                      color: Colors.white38, letterSpacing: 0.5)),
             ],
           ),
         ),
@@ -476,44 +579,28 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _fieldLabel(String text) => Text(
-        text,
-        style: GoogleFonts.dmSans(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: _textDark,
-          letterSpacing: 0.2,
-        ),
-      );
+  Widget _fieldLabel(String text) => Text(text,
+      style: GoogleFonts.dmSans(
+          fontSize: 13, fontWeight: FontWeight.w600,
+          color: _textDark, letterSpacing: 0.2));
 
   InputDecoration _inputDecoration({required String hint, required IconData icon}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.dmSans(fontSize: 14, color: _textMuted),
       prefixIcon: Icon(icon, color: _textMuted, size: 20),
-      filled: true,
-      fillColor: _inputBg,
+      filled: true, fillColor: _inputBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _accent, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1.2),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _accent, width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1.2)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5)),
     );
   }
 
@@ -540,12 +627,9 @@ class _LoginScreenState extends State<LoginScreen>
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    color: iconBg, borderRadius: BorderRadius.circular(12)),
                 child: Icon(icon, color: iconColor, size: 22),
               ),
               const SizedBox(width: 14),
@@ -553,19 +637,13 @@ class _LoginScreenState extends State<LoginScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: _textDark,
-                      ),
-                    ),
+                    Text(title,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, fontWeight: FontWeight.w700,
+                            color: _textDark)),
                     const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.dmSans(fontSize: 12, color: _textMuted),
-                    ),
+                    Text(subtitle,
+                        style: GoogleFonts.dmSans(fontSize: 12, color: _textMuted)),
                   ],
                 ),
               ),
@@ -577,14 +655,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Pending / Rejected screen ─────────────────────────────
-  Widget _buildPendingScreen(
-    BuildContext context,
-    AppAuthProvider auth,
-    String role,
-    String userName,
-    bool isRejected,
-  ) {
+  Widget _buildPendingScreen(BuildContext context, AppAuthProvider auth,
+      String role, String userName, bool isRejected) {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -603,8 +675,7 @@ class _LoginScreenState extends State<LoginScreen>
                 Container(
                   width: 110, height: 110,
                   decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: Colors.white24,
-                  ),
+                      shape: BoxShape.circle, color: Colors.white24),
                   child: Icon(
                     isRejected ? Icons.cancel_rounded : Icons.hourglass_empty_rounded,
                     size: 56,
@@ -612,14 +683,12 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
                 const SizedBox(height: 28),
-                Text(
-                  isRejected ? 'Account Rejected' : 'Pending Approval',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white,
-                  ),
-                ),
+                Text(isRejected ? 'Account Rejected' : 'Pending Approval',
+                    style: GoogleFonts.playfairDisplay(
+                        fontSize: 26, fontWeight: FontWeight.w700,
+                        color: Colors.white)),
                 const SizedBox(height: 8),
-                Text('Hello, \$userName',
+                Text('Hello, $userName',
                     style: GoogleFonts.dmSans(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 20),
                 Container(
@@ -631,11 +700,11 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   child: Text(
                     isRejected
-                        ? 'Your \$role account has been rejected. Please contact '
-                            '\${role == "Student" ? "your teacher" : "the administrator"}.'
-                        : 'Your \$role registration is pending approval.\n\nPlease wait for approval to access the app.',
+                        ? 'Your $role account has been rejected. Please contact ${role == "Student" ? "your teacher" : "the administrator"}.'
+                        : 'Your $role registration is pending approval.\n\nPlease wait for approval to access the app.',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.dmSans(fontSize: 14, color: Colors.white, height: 1.6),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 14, color: Colors.white, height: 1.6),
                   ),
                 ),
                 const SizedBox(height: 36),
@@ -654,11 +723,13 @@ class _LoginScreenState extends State<LoginScreen>
                     icon: const Icon(Icons.logout_rounded, color: _btnBlue),
                     label: Text('Sign Out',
                         style: GoogleFonts.dmSans(
-                            fontSize: 15, fontWeight: FontWeight.w700, color: _btnBlue)),
+                            fontSize: 15, fontWeight: FontWeight.w700,
+                            color: _btnBlue)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),

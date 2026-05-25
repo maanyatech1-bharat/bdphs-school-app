@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 
 class StudentRegistrationScreen extends StatefulWidget {
@@ -21,12 +22,10 @@ class _StudentRegistrationScreenState
   int _currentPage = 0;
   bool _isLoading = false;
 
-  // Form keys
   final _key1 = GlobalKey<FormState>();
   final _key2 = GlobalKey<FormState>();
   final _key3 = GlobalKey<FormState>();
 
-  // Controllers
   final _fullName = TextEditingController();
   final _fatherName = TextEditingController();
   final _motherName = TextEditingController();
@@ -37,14 +36,12 @@ class _StudentRegistrationScreenState
   final _rollNumber = TextEditingController();
   final _aadhar = TextEditingController();
 
-  // Values
   String _gender = 'Male';
   DateTime? _dob;
   String _className = 'Nursery';
   File? _photo;
   bool _obscure = true;
 
-  // Auto-generated credentials
   late String _studentId;
   final List<String> _classes = [
     'Nursery', 'LKG', 'UKG',
@@ -67,10 +64,7 @@ class _StudentRegistrationScreenState
     }
   }
 
-  void _generateCredentials() {
-    // ID generated from class + roll number on preview
-    _updateStudentId();
-  }
+  void _generateCredentials() => _updateStudentId();
 
   void _updateStudentId() {
     final classCode = _getClassCode(_className);
@@ -122,7 +116,7 @@ class _StudentRegistrationScreenState
     }
 
     if (valid) {
-      if (_currentPage == 2) _updateStudentId(); // refresh ID before preview
+      if (_currentPage == 2) _updateStudentId();
       _pageCtrl.nextPage(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOut);
@@ -158,6 +152,15 @@ class _StudentRegistrationScreenState
       if (mounted) {
         setState(() => _isLoading = false);
         if (result.success) {
+          // ── Send registration confirmation email ──────────────────────────
+          NotificationService.sendStudentRegistrationEmail(
+            toEmail: _email.text.trim(),
+            studentName: _fullName.text.trim(),
+            studentId: _studentId,
+            className: _className,
+            fatherName: _fatherName.text.trim(),
+          );
+          // ─────────────────────────────────────────────────────────────────
           _showSuccessDialog();
         } else {
           _showSnack(result.error ?? 'Registration failed', AppColors.error);
@@ -190,8 +193,29 @@ class _StudentRegistrationScreenState
             Text('Registration Successful!',
                 style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            // Credentials card
+            const SizedBox(height: 12),
+            // Email sent notice
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.info.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.email_outlined, color: AppColors.info, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'A confirmation email has been sent to ${_email.text.trim()}',
+                      style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -207,7 +231,6 @@ class _StudentRegistrationScreenState
                   const SizedBox(height: 10),
                   _CredRow(label: 'Student ID', value: _studentId),
                   _CredRow(label: 'Email', value: _email.text.trim()),
-
                 ],
               ),
             ),
@@ -285,10 +308,7 @@ class _StudentRegistrationScreenState
       ),
       body: Column(
         children: [
-          // Progress bar
           _ProgressBar(current: _currentPage),
-
-          // Pages
           Expanded(
             child: PageView(
               controller: _pageCtrl,
@@ -327,8 +347,6 @@ class _StudentRegistrationScreenState
               ],
             ),
           ),
-
-          // Bottom buttons
           _BottomButtons(
             currentPage: _currentPage,
             isLoading: _isLoading,
@@ -409,7 +427,6 @@ class _Page1 extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Photo picker
             GestureDetector(
               onTap: onPickPhoto,
               child: Stack(
@@ -441,7 +458,6 @@ class _Page1 extends StatelessWidget {
             _Field(label: 'Full Name', controller: fullName, icon: Icons.person_outline_rounded),
             _Field(label: "Father's Name", controller: fatherName, icon: Icons.man_rounded),
             _Field(label: "Mother's Name", controller: motherName, icon: Icons.woman_rounded),
-            // Gender
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<String>(
@@ -453,7 +469,6 @@ class _Page1 extends StatelessWidget {
                 onChanged: onGenderChanged,
               ),
             ),
-            // DOB
             GestureDetector(
               onTap: onPickDOB,
               child: Container(
@@ -535,7 +550,6 @@ class _Page2 extends StatelessWidget {
                 validator: (v) => !v!.contains('@') ? 'Enter valid email' : null),
             _Field(label: 'Address', controller: address,
                 icon: Icons.home_outlined, maxLines: 2),
-            // Password field
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: TextFormField(
@@ -558,7 +572,7 @@ class _Page2 extends StatelessWidget {
                       borderSide: const BorderSide(color: AppColors.divider)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-                  helperText: 'Create your own password. Min 6 characters. You can change it anytime from profile.',
+                  helperText: 'Create your own password. Min 6 characters.',
                   helperStyle: GoogleFonts.poppins(fontSize: 11, color: AppColors.textHint),
                 ),
                 validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
@@ -592,7 +606,6 @@ class _Page3 extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Class dropdown
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<String>(
@@ -628,7 +641,7 @@ class _Page3 extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'After registration, your account will be reviewed and approved by a teacher. You\'ll be able to login after approval.',
+                      'After registration, your account will be reviewed and approved by a teacher. A confirmation email will be sent to your registered email address.',
                       style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ),
@@ -664,7 +677,6 @@ class _PreviewPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Center(
             child: Column(
               children: [
@@ -683,8 +695,6 @@ class _PreviewPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Credentials (highlighted)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -703,13 +713,12 @@ class _PreviewPage extends StatelessWidget {
                 _WhiteRow('Student ID', studentId),
                 _WhiteRow('Email', email),
                 const SizedBox(height: 6),
-                Text('📌 Your Student ID is your school reference number.',
+                Text('📌 A confirmation email will be sent after registration.',
                     style: GoogleFonts.poppins(fontSize: 11, color: AppColors.accentLight)),
               ],
             ),
           ),
           const SizedBox(height: 16),
-
           _PreviewSection(title: 'Personal Information', icon: Icons.person_rounded, color: AppColors.studentColor, rows: [
             _PRow('Full Name', fullName),
             _PRow("Father's Name", fatherName),
