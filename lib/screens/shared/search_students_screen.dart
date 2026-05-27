@@ -22,11 +22,9 @@ class _SearchStudentsScreenState extends State<SearchStudentsScreen> {
 
   final List<String> _classes = [
     'All Classes',
-    'Nursery', 'KG',
+    'Nursery', 'LKG', 'UKG',
     'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
     'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-    'Class 11 - Science', 'Class 11 - Arts', 'Class 11 - Commerce',
-    'Class 12 - Science', 'Class 12 - Arts', 'Class 12 - Commerce',
   ];
 
   @override
@@ -93,8 +91,7 @@ class _SearchStudentsScreenState extends State<SearchStudentsScreen> {
             child: TextField(
               controller: _searchCtrl,
               autofocus: true,
-              style: GoogleFonts.poppins(
-                  color: Colors.white, fontSize: 14),
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search by name, roll number, phone...',
                 hintStyle: GoogleFonts.poppins(
@@ -112,7 +109,8 @@ class _SearchStudentsScreenState extends State<SearchStudentsScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.15),
+                // ✅ Fixed: was .withOpacity(0.15)
+                fillColor: Colors.white.withValues(alpha: 0.15),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -147,9 +145,7 @@ class _SearchStudentsScreenState extends State<SearchStudentsScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? AppColors.primary
-                          : Colors.white,
+                      color: selected ? AppColors.primary : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: selected
@@ -174,8 +170,8 @@ class _SearchStudentsScreenState extends State<SearchStudentsScreen> {
           ),
           // Result count
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 6),
             child: Row(
               children: [
                 Text(
@@ -218,7 +214,7 @@ class _SearchStudentsScreenState extends State<SearchStudentsScreen> {
   }
 }
 
-// ─── SEARCH RESULT CARD ────────────────────────────────────────────────────────
+// ─── SEARCH RESULT CARD ───────────────────────────────────────────────────────
 class _StudentSearchCard extends StatelessWidget {
   final StudentModel student;
   const _StudentSearchCard({required this.student});
@@ -240,7 +236,8 @@ class _StudentSearchCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                // ✅ Fixed: was .withOpacity(0.05)
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2)),
           ],
@@ -288,7 +285,8 @@ class _StudentSearchCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: _attColor(student.attendancePercentage).withValues(alpha: 0.12),
+                    color: _attColor(student.attendancePercentage)
+                        .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -315,7 +313,8 @@ class _StudentSearchCard extends StatelessWidget {
     );
   }
 
-  Color _attColor(double? p) { final pct = p ?? 0;
+  Color _attColor(double? p) {
+    final pct = p ?? 0;
     if (pct >= 75) return AppColors.success;
     if (pct >= 60) return AppColors.warning;
     return AppColors.error;

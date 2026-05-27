@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../theme/app_theme.dart';
@@ -18,11 +19,22 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   Map<String, dynamic>? _result;
   String _fromLang = 'English';
   String _toLang = 'Hindi';
-  String _workingModel = 'gemini-2.5-flash';
 
-  static const String _apiKey = 'AIzaSyBl9FZpLQeHaf1S2DlvFOKlJZ0mVdQ3mW0';
+  // ── Uses same .env key as AI chatbot — never hardcoded ──
+  String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
 
-  final List<String> _languages = ['English', 'Hindi', 'Urdu', 'Punjabi'];
+  // Models to try in order
+  final List<String> _models = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-pro',
+  ];
+
+  final List<String> _languages = [
+    'English', 'Hindi', 'Urdu', 'Punjabi', 'Sanskrit'
+  ];
 
   final List<Map<String, String>> _quickWords = [
     {'w': 'Beautiful', 'h': 'सुंदर'},
@@ -40,102 +52,70 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _findModel();
-  }
-
-  Future<void> _findModel() async {
-    try {
-      final uri = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models?key=$_apiKey');
-      final res =
-          await http.get(uri).timeout(const Duration(seconds: 8));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final models = (data['models'] as List<dynamic>?) ?? [];
-        for (final m in models) {
-          final name = m['name'] as String? ?? '';
-          final methods =
-              (m['supportedGenerationMethods'] as List<dynamic>?) ?? [];
-          if (methods.contains('generateContent') &&
-              name.contains('gemini')) {
-            setState(
-                () => _workingModel = name.replaceFirst('models/', ''));
-            return;
-          }
-        }
-      }
-    } catch (_) {}
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   Future<void> _lookup(String word) async {
     if (word.trim().isEmpty) return;
     FocusScope.of(context).unfocus();
-    setState(() {
-      _loading = true;
-      _result = null;
-    });
+    setState(() { _loading = true; _result = null; });
 
-    try {
-      final prompt =
-          'You are a bilingual dictionary. For the word "$word" '
-          '(from $_fromLang to $_toLang), return ONLY a valid JSON object. '
-          'Keep all values under 15 words each. '
-          'Fields: word, pronunciation, translation, meaning_english, '
-          'meaning_hindi, part_of_speech, example_english, example_hindi, '
-          'synonyms (array of 3 strings), antonyms (array of 2 strings). '
-          'No markdown. ONLY the JSON object.';
+    final prompt =
+        'You are a bilingual dictionary. For the word "$word" '
+        '(from $_fromLang to $_toLang), return ONLY a valid JSON object. '
+        'Keep all values under 15 words each. '
+        'Fields: word, pronunciation, translation, meaning_english, '
+        'meaning_hindi, part_of_speech, example_english, example_hindi, '
+        'synonyms (array of 3 strings), antonyms (array of 2 strings). '
+        'No markdown. ONLY the raw JSON object.';
 
-      final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/$_workingModel:generateContent?key=$_apiKey',
-      );
+    // Try each model until one works
+    for (final model in _models) {
+      try {
+        final uri = Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$_apiKey',
+        );
+        final res = await http.post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'contents': [{'parts': [{'text': prompt}]}],
+            'generationConfig': {'maxOutputTokens': 1024, 'temperature': 0.1},
+          }),
+        ).timeout(const Duration(seconds: 20));
 
-      final res = await http
-          .post(
-            uri,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'contents': [
-                {
-                  'parts': [
-                    {'text': prompt}
-                  ]
-                }
-              ],
-              'generationConfig': {
-                'maxOutputTokens': 2048,
-                'temperature': 0.1
-              },
-            }),
-          )
-          .timeout(const Duration(seconds: 20));
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final text =
-            data['candidates'][0]['content']['parts'][0]['text'] as String;
-        String clean = text.trim();
-        clean =
-            clean.replaceAll('```json', '').replaceAll('```', '').trim();
-        final start = clean.indexOf('{');
-        final end = clean.lastIndexOf('}');
-        if (start != -1 && end != -1) {
-          clean = clean.substring(start, end + 1);
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final text = data['candidates'][0]['content']['parts'][0]['text'] as String;
+          String clean = text.trim()
+              .replaceAll('```json', '')
+              .replaceAll('```', '')
+              .trim();
+          final start = clean.indexOf('{');
+          final end = clean.lastIndexOf('}');
+          if (start != -1 && end != -1) {
+            clean = clean.substring(start, end + 1);
+          }
+          final parsed = jsonDecode(clean) as Map<String, dynamic>;
+          setState(() { _result = parsed; _loading = false; });
+          return; // success — stop trying models
         }
-        final parsed = jsonDecode(clean) as Map<String, dynamic>;
-        setState(() => _result = parsed);
-      } else {
-        final errData = jsonDecode(res.body);
-        final msg =
-            errData['error']?['message'] ?? 'Status ${res.statusCode}';
-        setState(() => _result = {'error': 'API Error: $msg'});
+        // If 429 or 503 try next model, else break
+        if (res.statusCode != 429 && res.statusCode != 503) break;
+      } catch (_) {
+        continue; // try next model
       }
-    } catch (e) {
-      setState(() =>
-          _result = {'error': 'Could not find "$word". Please try again.'});
     }
-    setState(() => _loading = false);
+
+    // All models failed
+    if (mounted) {
+      setState(() {
+        _result = {'error': 'Could not find "$word". Check your internet and try again.'};
+        _loading = false;
+      });
+    }
   }
 
   void _copyToClipboard(String text) {
@@ -154,12 +134,6 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       _toLang = temp;
       _result = null;
     });
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
   }
 
   @override
@@ -182,43 +156,27 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
             child: Column(children: [
               // Language row
               Row(children: [
-                Expanded(
-                    child: _LangDropdown(
-                        value: _fromLang,
-                        label: 'From',
-                        options: _languages,
-                        onChanged: (v) => setState(() {
-                              _fromLang = v!;
-                              _result = null;
-                            }))),
+                Expanded(child: _LangDropdown(
+                    value: _fromLang, label: 'From',
+                    options: _languages,
+                    onChanged: (v) => setState(() { _fromLang = v!; _result = null; }))),
                 GestureDetector(
                   onTap: _swapLanguages,
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 8),
-                    width: 40,
-                    height: 40,
+                    width: 40, height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.info,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                            color: AppColors.info.withValues(alpha: 0.3),
-                            blurRadius: 8)
-                      ],
+                      color: AppColors.info, shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(
+                          color: AppColors.info.withValues(alpha: 0.3), blurRadius: 8)],
                     ),
-                    child: const Icon(Icons.swap_horiz_rounded,
-                        color: Colors.white, size: 20),
+                    child: const Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 20),
                   ),
                 ),
-                Expanded(
-                    child: _LangDropdown(
-                        value: _toLang,
-                        label: 'To',
-                        options: _languages,
-                        onChanged: (v) => setState(() {
-                              _toLang = v!;
-                              _result = null;
-                            }))),
+                Expanded(child: _LangDropdown(
+                    value: _toLang, label: 'To',
+                    options: _languages,
+                    onChanged: (v) => setState(() { _toLang = v!; _result = null; }))),
               ]),
               const SizedBox(height: 12),
               // Search box
@@ -230,22 +188,16 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                         fontSize: 16, fontWeight: FontWeight.w600),
                     decoration: InputDecoration(
                       hintText: 'Type a word...',
-                      hintStyle: GoogleFonts.poppins(
-                          color: AppColors.textHint),
-                      filled: true,
-                      fillColor: Colors.white,
+                      hintStyle: GoogleFonts.poppins(color: AppColors.textHint),
+                      filled: true, fillColor: Colors.white,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none),
-                      prefixIcon: const Icon(Icons.search_rounded,
-                          color: AppColors.info),
+                      prefixIcon: const Icon(Icons.search_rounded, color: AppColors.info),
                       suffixIcon: _ctrl.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear_rounded),
-                              onPressed: () {
-                                _ctrl.clear();
-                                setState(() => _result = null);
-                              })
+                              onPressed: () { _ctrl.clear(); setState(() => _result = null); })
                           : null,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 14),
@@ -258,19 +210,14 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                 GestureDetector(
                   onTap: () => _lookup(_ctrl.text),
                   child: Container(
-                    width: 50,
-                    height: 50,
+                    width: 50, height: 50,
                     decoration: BoxDecoration(
                       color: AppColors.info,
                       borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                            color: AppColors.info.withValues(alpha: 0.3),
-                            blurRadius: 8)
-                      ],
+                      boxShadow: [BoxShadow(
+                          color: AppColors.info.withValues(alpha: 0.3), blurRadius: 8)],
                     ),
-                    child: const Icon(Icons.search_rounded,
-                        color: Colors.white, size: 24),
+                    child: const Icon(Icons.search_rounded, color: Colors.white, size: 24),
                   ),
                 ),
               ]),
@@ -280,98 +227,67 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
           // Content
           Expanded(
             child: _loading
-                ? Center(
-                    child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                        const CircularProgressIndicator(
-                            color: AppColors.info),
-                        const SizedBox(height: 12),
-                        Text('Looking up...',
-                            style: GoogleFonts.poppins(
-                                color: AppColors.textSecondary)),
-                      ]))
+                ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const CircularProgressIndicator(color: AppColors.info),
+                    const SizedBox(height: 12),
+                    Text('Looking up...', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+                  ]))
                 : _result != null
                     ? _result!.containsKey('error')
-                        ? Center(
-                            child: Padding(
+                        ? Center(child: Padding(
                             padding: const EdgeInsets.all(24),
-                            child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('😕',
-                                      style: TextStyle(fontSize: 48)),
-                                  const SizedBox(height: 12),
-                                  Text(_result!['error'],
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.poppins(
-                                          color: AppColors.error,
-                                          fontSize: 14)),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        _lookup(_ctrl.text),
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.info),
-                                    child: Text('Try Again',
-                                        style: GoogleFonts.poppins(
-                                            color: Colors.white)),
-                                  ),
-                                ]),
+                            child: Column(mainAxisSize: MainAxisSize.min, children: [
+                              const Text('😕', style: TextStyle(fontSize: 48)),
+                              const SizedBox(height: 12),
+                              Text(_result!['error'],
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.poppins(
+                                      color: AppColors.error, fontSize: 14)),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => _lookup(_ctrl.text),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.info),
+                                child: Text('Try Again',
+                                    style: GoogleFonts.poppins(color: Colors.white)),
+                              ),
+                            ]),
                           ))
-                        : _ResultView(
-                            result: _result!,
-                            onCopy: _copyToClipboard,
-                          )
+                        : _ResultView(result: _result!, onCopy: _copyToClipboard)
                     : ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
                           Text('Quick Words',
                               style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700)),
+                                  fontSize: 16, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 10),
                           Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _quickWords
-                                .map((w) => GestureDetector(
-                                      onTap: () {
-                                        _ctrl.text = w['w']!;
-                                        _lookup(w['w']!);
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 14, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                              color: AppColors.info
-                                                  .withValues(alpha: 0.3)),
-                                          boxShadow: [
-                                            BoxShadow(
-                                                color: Colors.black
-                                                    .withValues(alpha: 0.04),
-                                                blurRadius: 4)
-                                          ],
-                                        ),
-                                        child: Column(children: [
-                                          Text(w['w']!,
-                                              style: GoogleFonts.poppins(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AppColors.info)),
-                                          Text(w['h']!,
-                                              style: GoogleFonts.poppins(
-                                                  fontSize: 11,
-                                                  color: AppColors
-                                                      .textSecondary)),
-                                        ]),
-                                      ),
-                                    ))
-                                .toList(),
+                            spacing: 8, runSpacing: 8,
+                            children: _quickWords.map((w) => GestureDetector(
+                              onTap: () { _ctrl.text = w['w']!; _lookup(w['w']!); },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: AppColors.info.withValues(alpha: 0.3)),
+                                  boxShadow: [BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 4)],
+                                ),
+                                child: Column(children: [
+                                  Text(w['w']!,
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 13, fontWeight: FontWeight.w700,
+                                          color: AppColors.info)),
+                                  Text(w['h']!,
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 11, color: AppColors.textSecondary)),
+                                ]),
+                              ),
+                            )).toList(),
                           ),
                           const SizedBox(height: 20),
                           Container(
@@ -380,15 +296,12 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                               color: AppColors.info.withValues(alpha: 0.06),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color:
-                                      AppColors.info.withValues(alpha: 0.2)),
+                                  color: AppColors.info.withValues(alpha: 0.2)),
                             ),
                             child: Row(children: [
-                              const Text('💡',
-                                  style: TextStyle(fontSize: 20)),
+                              const Text('💡', style: TextStyle(fontSize: 20)),
                               const SizedBox(width: 10),
-                              Expanded(
-                                  child: Text(
+                              Expanded(child: Text(
                                 'Type any English or Hindi word to get meaning, translation, pronunciation and examples!',
                                 style: GoogleFonts.poppins(
                                     fontSize: 12,
@@ -426,57 +339,44 @@ class _ResultView extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-                colors: [
-                  AppColors.info,
-                  AppColors.info.withValues(alpha: 0.8)
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight),
+                colors: [AppColors.info, AppColors.info.withValues(alpha: 0.8)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight),
             borderRadius: BorderRadius.circular(20),
           ),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(result['word'] ?? '',
+              Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(result['word'] ?? '',
+                    style: GoogleFonts.poppins(
+                        fontSize: 28, fontWeight: FontWeight.w900,
+                        color: Colors.white)),
+                if (result['pronunciation'] != null)
+                  Text('/${result['pronunciation']}/',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, color: Colors.white70,
+                          fontStyle: FontStyle.italic)),
+                if (result['part_of_speech'] != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text(result['part_of_speech'] ?? '',
                         style: GoogleFonts.poppins(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white)),
-                    if (result['pronunciation'] != null)
-                      Text('/${result['pronunciation']}/',
-                          style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: Colors.white70,
-                              fontStyle: FontStyle.italic)),
-                    if (result['part_of_speech'] != null)
-                      Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10)),
-                        child: Text(result['part_of_speech'] ?? '',
-                            style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                  ])),
+                            fontSize: 11, color: Colors.white,
+                            fontWeight: FontWeight.w600)),
+                  ),
+              ])),
               GestureDetector(
                 onTap: () => onCopy(result['word'] ?? ''),
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 36, height: 36,
                   decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle),
-                  child: const Icon(Icons.copy_rounded,
-                      color: Colors.white, size: 18),
+                  child: const Icon(Icons.copy_rounded, color: Colors.white, size: 18),
                 ),
               ),
             ]),
@@ -485,31 +385,23 @@ class _ResultView extends StatelessWidget {
             const SizedBox(height: 16),
             Text('Translation',
                 style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: Colors.white60,
-                    fontWeight: FontWeight.w600)),
+                    fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w600)),
             Text(result['translation'] ?? '',
                 style: GoogleFonts.poppins(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white)),
+                    fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white)),
           ]),
         ),
         const SizedBox(height: 16),
 
-        // Meanings
         Row(children: [
-          Expanded(
-              child: _InfoCard('🇬🇧 English Meaning',
-                  result['meaning_english'] ?? '', AppColors.primary)),
+          Expanded(child: _InfoCard('🇬🇧 English Meaning',
+              result['meaning_english'] ?? '', AppColors.primary)),
           const SizedBox(width: 10),
-          Expanded(
-              child: _InfoCard('🇮🇳 Hindi Meaning',
-                  result['meaning_hindi'] ?? '', AppColors.success)),
+          Expanded(child: _InfoCard('🇮🇳 Hindi Meaning',
+              result['meaning_hindi'] ?? '', AppColors.success)),
         ]),
         const SizedBox(height: 12),
 
-        // Examples
         _ExampleCard('Example (English)',
             result['example_english'] ?? '', AppColors.primary, onCopy),
         const SizedBox(height: 10),
@@ -517,37 +409,26 @@ class _ResultView extends StatelessWidget {
             result['example_hindi'] ?? '', AppColors.success, onCopy),
         const SizedBox(height: 16),
 
-        // Synonyms
         if (synonyms.isNotEmpty) ...[
           Text('Synonyms (Similar words)',
-              style: GoogleFonts.poppins(
-                  fontSize: 13, fontWeight: FontWeight.w700)),
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: synonyms
-                  .map((s) => _WordChip(s.toString(), AppColors.primary))
-                  .toList()),
+          Wrap(spacing: 8, runSpacing: 6,
+              children: synonyms.map((s) =>
+                  _WordChip(s.toString(), AppColors.primary)).toList()),
           const SizedBox(height: 12),
         ],
 
-        // Antonyms
         if (antonyms.isNotEmpty) ...[
           Text('Antonyms (Opposite words)',
-              style: GoogleFonts.poppins(
-                  fontSize: 13, fontWeight: FontWeight.w700)),
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: antonyms
-                  .map((s) => _WordChip(s.toString(), AppColors.error))
-                  .toList()),
+          Wrap(spacing: 8, runSpacing: 6,
+              children: antonyms.map((s) =>
+                  _WordChip(s.toString(), AppColors.error)).toList()),
           const SizedBox(height: 16),
         ],
 
-        // Action buttons
         Row(children: [
           Expanded(
             child: ElevatedButton.icon(
@@ -556,16 +437,14 @@ class _ResultView extends StatelessWidget {
                   'Meaning: ${result['meaning_english']}\n'
                   'Hindi: ${result['meaning_hindi']}\n'
                   'Example: ${result['example_english']}'),
-              icon: const Icon(Icons.copy_rounded,
-                  color: Colors.white, size: 18),
+              icon: const Icon(Icons.copy_rounded, color: Colors.white, size: 18),
               label: Text('Copy All',
                   style: GoogleFonts.poppins(
                       color: Colors.white, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.info,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -576,16 +455,14 @@ class _ResultView extends StatelessWidget {
                   '${result['word']}: ${result['translation']}\n'
                   '${result['example_english']}\n'
                   '${result['example_hindi']}'),
-              icon: const Icon(Icons.share_rounded,
-                  color: Colors.white, size: 18),
+              icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
               label: Text('Copy & Share',
                   style: GoogleFonts.poppins(
                       color: Colors.white, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -609,17 +486,11 @@ class _InfoCard extends StatelessWidget {
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title,
-              style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color)),
+          Text(title, style: GoogleFonts.poppins(
+              fontSize: 11, fontWeight: FontWeight.w700, color: color)),
           const SizedBox(height: 6),
-          Text(content,
-              style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: AppColors.textPrimary)),
+          Text(content, style: GoogleFonts.poppins(
+              fontSize: 13, height: 1.4, color: AppColors.textPrimary)),
         ]),
       );
 }
@@ -635,28 +506,18 @@ class _ExampleCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)
-          ],
+          boxShadow: [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
         ),
         child: Row(children: [
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(title,
-                    style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: color)),
-                const SizedBox(height: 4),
-                Text('"$sentence"',
-                    style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontStyle: FontStyle.italic,
-                        height: 1.4)),
-              ])),
+          Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: GoogleFonts.poppins(
+                fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+            const SizedBox(height: 4),
+            Text('"$sentence"', style: GoogleFonts.poppins(
+                fontSize: 13, fontStyle: FontStyle.italic, height: 1.4)),
+          ])),
           IconButton(
               icon: Icon(Icons.copy_rounded, size: 16, color: color),
               onPressed: () => onCopy(sentence)),
@@ -670,18 +531,14 @@ class _WordChip extends StatelessWidget {
   const _WordChip(this.word, this.color);
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
-        child: Text(word,
-            style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color)),
+        child: Text(word, style: GoogleFonts.poppins(
+            fontSize: 12, fontWeight: FontWeight.w600, color: color)),
       );
 }
 
@@ -689,38 +546,27 @@ class _LangDropdown extends StatelessWidget {
   final String value, label;
   final List<String> options;
   final void Function(String?) onChanged;
-  const _LangDropdown(
-      {required this.value,
-      required this.label,
-      required this.options,
-      required this.onChanged});
+  const _LangDropdown({required this.value, required this.label,
+      required this.options, required this.onChanged});
   @override
   Widget build(BuildContext context) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textHint)),
+        Text(label, style: GoogleFonts.poppins(
+            fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textHint)),
         const SizedBox(height: 4),
         Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.divider)),
           child: DropdownButton<String>(
-            value: value,
-            isExpanded: true,
-            underline: const SizedBox(),
+            value: value, isExpanded: true, underline: const SizedBox(),
             style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 14, fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary),
-            items: options
-                .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                .toList(),
+            items: options.map((o) =>
+                DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: onChanged,
           ),
         ),

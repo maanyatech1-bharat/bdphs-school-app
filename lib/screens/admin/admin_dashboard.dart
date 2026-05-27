@@ -12,9 +12,7 @@ import '../shared/notices_screen.dart';
 import '../shared/search_students_screen.dart';
 import '../shared/timetable_screen.dart';
 import '../shared/fee_screen.dart';
-import '../shared/more_screens.dart' hide LeaderboardScreen;
 import '../shared/leave_screen.dart';
-import '../shared/exam_screen.dart' hide LeaveScreen;
 import '../shared/exam_schedule_screen.dart'; // ✅ Proper exam screen
 import '../shared/books_screen.dart';
 import '../shared/videos_screen.dart';
@@ -24,6 +22,7 @@ import '../shared/leaderboard_screen.dart';
 import '../shared/syllabus_gallery_material.dart';
 
 import '../auth/login_screen.dart';
+import '../shared/more_screens.dart' hide LeaderboardScreen;
 
 import 'approve_students_screen.dart';
 import 'approve_teachers_screen.dart';
@@ -256,11 +255,11 @@ class _HomeTab extends StatelessWidget {
             _buildGrid([
               _FCard(Icons.calendar_month_rounded, 'Calendar',
                   const Color(0xFF0891B2),
-                  () => _go(context, const SchoolCalendarScreen())),
+                  () => _go(context, SchoolCalendarScreen())),
               _FCard(Icons.phone_rounded, 'Emergency', const Color(0xFFDC2626),
-                  () => _go(context, const EmergencyContactsScreen())),
+                  () => _go(context, EmergencyContactsScreen())),
               _FCard(Icons.feedback_rounded, 'Complaints', const Color(0xFF7C3AED),
-                  () => _go(context, const ComplaintBoxScreen())),
+                  () => _go(context, ComplaintBoxScreen())),
               _FCard(Icons.how_to_reg_rounded, 'Teacher\nAttendance',
                   const Color(0xFFD97706),
                   () => _go(context, const AdminTeacherAttendanceScreen())),
