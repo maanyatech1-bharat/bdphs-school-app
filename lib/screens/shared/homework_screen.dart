@@ -1,522 +1,1023 @@
 // lib/screens/shared/homework_screen.dart
-// Teacher: post homework per class | Student: see only their class homework
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+// Teacher: post homework — type text + optional photo of board/diary
+// Student: see only their class homework, read image in-app
+// No downloads | No screenshots on image view
+
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import '../../services/auth_provider.dart';
+import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
+import '../../services/auth_provider.dart';
 import '../../theme/app_theme.dart';
 
-class HomeworkScreen extends StatefulWidget {
-  const HomeworkScreen({super.key});
-  @override
-  State<HomeworkScreen> createState() => _HomeworkScreenState();
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// MODEL
+// ─────────────────────────────────────────────────────────────────────────────
+class HomeworkEntry {
+  final String id;
+  final String subject;
+  final String description;
+  final String? imageUrl;
+  final String className;
+  final DateTime dueDate;
+  final String postedBy;
+  final String postedByName;
+  final DateTime postedAt;
+  final bool isUrgent;
 
-class _HomeworkScreenState extends State<HomeworkScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabs;
+  HomeworkEntry({
+    required this.id,
+    required this.subject,
+    required this.description,
+    this.imageUrl,
+    required this.className,
+    required this.dueDate,
+    required this.postedBy,
+    required this.postedByName,
+    required this.postedAt,
+    required this.isUrgent,
+  });
 
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final user = context.watch<AppAuthProvider>().currentUser;
-    final canPost = user?.role == UserRole.teacher || user?.role == UserRole.admin;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text('Homework',
-            style: GoogleFonts.poppins(
-                color: Colors.white, fontWeight: FontWeight.w700)),
-        backgroundColor: const Color(0xFF7C3AED),
-        foregroundColor: Colors.white,
-        bottom: canPost ? TabBar(
-          controller: _tabs,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(text: '📋 Homework List'),
-            Tab(text: '➕ Post Homework'),
-          ],
-        ) : null,
-      ),
-      body: canPost
-          ? TabBarView(
-              controller: _tabs,
-              children: [
-                _HomeworkListTab(user: user, canDelete: true),
-                _PostHomeworkTab(user: user),
-              ],
-            )
-          : _HomeworkListTab(user: user, canDelete: false),
+  factory HomeworkEntry.fromFirestore(DocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return HomeworkEntry(
+      id: doc.id,
+      subject: d['subject'] ?? '',
+      description: d['description'] ?? '',
+      imageUrl: d['imageUrl'],
+      className: d['className'] ?? '',
+      dueDate: (d['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      postedBy: d['postedBy'] ?? '',
+      postedByName: d['postedByName'] ?? '',
+      postedAt: (d['postedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isUrgent: d['isUrgent'] ?? false,
     );
   }
 }
 
-// ─── Homework List Tab ────────────────────────────────────────────────────────
-class _HomeworkListTab extends StatefulWidget {
-  final dynamic user;
-  final bool canDelete;
-  const _HomeworkListTab({required this.user, required this.canDelete});
+const List<String> _kClasses = [
+  'Nursery', 'LKG', 'UKG',
+  'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+  'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+];
+
+const List<String> _kSubjects = [
+  'Mathematics', 'Science', 'English', 'Hindi', 'Social Studies',
+  'Computer Science', 'Sanskrit', 'Urdu', 'Physical Education',
+  'Art & Craft', 'Moral Science', 'General Knowledge',
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+class HomeworkScreen extends StatefulWidget {
+  const HomeworkScreen({super.key});
+
   @override
-  State<_HomeworkListTab> createState() => _HomeworkListTabState();
+  State<HomeworkScreen> createState() => _HomeworkScreenState();
 }
 
-class _HomeworkListTabState extends State<_HomeworkListTab> {
-  String _selectedClass = 'All';
-  String _selectedSubject = 'All';
-
-  final _classes = ['All', 'Nursery', 'LKG', 'UKG',
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
-  final _subjects = ['All', 'Mathematics', 'Science', 'English', 'Hindi',
-    'Social Studies', 'Sanskrit', 'Computer', 'General Knowledge'];
-
-  Color _subjectColor(String s) {
-    const map = {
-      'Mathematics': Color(0xFF2563EB), 'Science': Color(0xFF059669),
-      'English': Color(0xFF7C3AED), 'Hindi': Color(0xFFDC2626),
-      'Social Studies': Color(0xFFD97706), 'Sanskrit': Color(0xFF0891B2),
-      'Computer': Color(0xFF374151),
-    };
-    return map[s] ?? AppColors.primary;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // ✅ FIX: use role check, not 'is StudentModel' (user is dynamic)
-    final user = widget.user;
-    if (user?.role == UserRole.student) {
-      _selectedClass = user?.className ?? 'All';
-    }
-  }
+class _HomeworkScreenState extends State<HomeworkScreen> {
+  String? _selectedClass;
 
   @override
   Widget build(BuildContext context) {
-    final isStudent = widget.user?.role == UserRole.student;
+    final user = context.read<AppAuthProvider>().currentUser;
+    final isStudent = user?.role == UserRole.student;
+    final canPost =
+        user?.role == UserRole.teacher || user?.role == UserRole.admin;
 
-    return Column(children: [
-      // Filters
-      Container(
-        color: Colors.white,
-        padding: const EdgeInsets.all(12),
-        child: Column(children: [
-          _drop('Class', _selectedClass, _classes,
-              (v) => setState(() => _selectedClass = v!),
-              enabled: !isStudent),
-          const SizedBox(height: 8),
-          _drop('Subject', _selectedSubject, _subjects,
-              (v) => setState(() => _selectedSubject = v!)),
-        ]),
+    // Students always see their own class
+    if (isStudent && _selectedClass == null) {
+      _selectedClass = (user as dynamic)?.className;
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          _selectedClass != null ? 'Homework — $_selectedClass' : 'Homework',
+          style: GoogleFonts.poppins(
+              fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+        backgroundColor: AppColors.accent,
+        foregroundColor: Colors.white,
+        leading: _selectedClass != null && !isStudent
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                onPressed: () => setState(() => _selectedClass = null))
+            : null,
       ),
-      const Divider(height: 1),
+      body: _selectedClass != null
+          ? _HomeworkList(
+              className: _selectedClass!,
+              canPost: canPost,
+              user: user!,
+            )
+          : _ClassGrid(
+              onClassTap: (c) => setState(() => _selectedClass = c)),
+      floatingActionButton: canPost && _selectedClass != null
+          ? FloatingActionButton.extended(
+              onPressed: () => _showPostDialog(context, user!),
+              backgroundColor: AppColors.accent,
+              icon: const Icon(Icons.add_task_rounded),
+              label: Text('Post Homework',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            )
+          : null,
+    );
+  }
 
-      Expanded(child: StreamBuilder<QuerySnapshot>(
-        stream: _buildQuery(),
-        builder: (ctx, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(
-                color: Color(0xFF7C3AED)));
-          }
-          var docs = snap.data?.docs ?? [];
+  void _showPostDialog(BuildContext context, UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          _PostHomeworkSheet(className: _selectedClass!, user: user),
+    );
+  }
+}
 
-          // ✅ Sort client-side by dueDate ascending
-          docs = List.from(docs)..sort((a, b) {
-            final aDate = (a.data() as Map)['dueDate'] as Timestamp?;
-            final bDate = (b.data() as Map)['dueDate'] as Timestamp?;
-            if (aDate == null && bDate == null) return 0;
-            if (aDate == null) return 1;
-            if (bDate == null) return -1;
-            return aDate.compareTo(bDate);
-          });
+// ─────────────────────────────────────────────────────────────────────────────
+// CLASS GRID (teacher picks class)
+// ─────────────────────────────────────────────────────────────────────────────
+class _ClassGrid extends StatelessWidget {
+  final ValueChanged<String> onClassTap;
+  const _ClassGrid({required this.onClassTap});
 
-          if (_selectedSubject != 'All') {
-            docs = docs.where((d) =>
-                (d.data() as Map)['subject'] == _selectedSubject).toList();
-          }
-
-          if (docs.isEmpty) {
-            return Center(child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.assignment_outlined, size: 64,
-                    color: AppColors.primary.withValues(alpha: 0.3)),
-                const SizedBox(height: 16),
-                Text('No Homework',
-                    style: GoogleFonts.poppins(
-                        fontSize: 18, fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary)),
-                const SizedBox(height: 6),
-                Text(isStudent
-                    ? 'No homework assigned for your class yet'
-                    : 'No homework posted yet',
-                    style: GoogleFonts.poppins(
-                        fontSize: 13, color: AppColors.textSecondary)),
-              ],
-            ));
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: docs.length,
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          color: AppColors.accent,
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.assignment_rounded,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 12),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Homework',
+                  style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700)),
+              Text('Select class to view or post',
+                  style: GoogleFonts.poppins(
+                      color: Colors.white70, fontSize: 13)),
+            ]),
+          ]),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: _kClasses.length,
             itemBuilder: (_, i) {
-              final d = docs[i].data() as Map<String, dynamic>;
-              final docId = docs[i].id;
-              final subject = d['subject'] as String? ?? 'General';
-              final color = _subjectColor(subject);
-              final dueDate = (d['dueDate'] as Timestamp?)?.toDate();
-              final isOverdue = dueDate != null &&
-                  dueDate.isBefore(DateTime.now());
-              final daysLeft = dueDate != null
-                  ? dueDate.difference(DateTime.now()).inDays
-                  : null;
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border(left: BorderSide(color: color, width: 4)),
-                  boxShadow: [BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8)],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
+              final cls = _kClasses[i];
+              return GestureDetector(
+                onTap: () => onClassTap(cls),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2)),
+                    ],
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Row(children: [
-                        Expanded(child: Text(d['title'] ?? 'Homework',
-                            style: GoogleFonts.poppins(
-                                fontSize: 15, fontWeight: FontWeight.w800))),
-                        if (widget.canDelete)
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded,
-                                color: AppColors.error, size: 20),
-                            onPressed: () => FirebaseFirestore.instance
-                                .collection('homework').doc(docId).delete(),
-                          ),
-                      ]),
-                      const SizedBox(height: 6),
-                      Wrap(spacing: 8, children: [
-                        _tag(subject, color),
-                        _tag(d['className'] ?? 'All',
-                            const Color(0xFF2563EB)),
-                        if (isOverdue)
-                          _tag('Overdue', AppColors.error)
-                        else if (daysLeft != null && daysLeft <= 1)
-                          _tag('Due Today!', const Color(0xFFD97706)),
-                      ]),
-                      if ((d['description'] as String? ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(d['description'],
-                            style: GoogleFonts.poppins(
-                                fontSize: 13, color: AppColors.textSecondary,
-                                height: 1.5)),
-                      ],
-                      const SizedBox(height: 10),
-                      Row(children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            size: 14, color: AppColors.textHint),
-                        const SizedBox(width: 4),
-                        Text(
-                          dueDate != null
-                              ? 'Due: ${DateFormat('dd MMM yyyy').format(dueDate)}'
-                              : 'No due date',
-                          style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: isOverdue
-                                  ? AppColors.error
-                                  : AppColors.textHint,
-                              fontWeight: isOverdue
-                                  ? FontWeight.w700 : FontWeight.w400),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const Spacer(),
-                        Text('By: ${d['postedByName'] ?? 'Teacher'}',
-                            style: GoogleFonts.poppins(
-                                fontSize: 11, color: AppColors.textHint)),
-                      ]),
+                        child: const Icon(Icons.group_rounded,
+                            color: AppColors.accent, size: 22),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(cls,
+                          style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary),
+                          textAlign: TextAlign.center),
                     ],
                   ),
                 ),
               );
             },
-          );
-        },
-      )),
-    ]);
-  }
-
-  Stream<QuerySnapshot> _buildQuery() {
-    final user = widget.user;
-    Query q = FirebaseFirestore.instance.collection('homework');
-
-    // ✅ FIX: use role check not 'is StudentModel'
-    if (user?.role == UserRole.student) {
-      final cls = user?.className ?? '';
-      if (cls.isNotEmpty) {
-        q = q.where('className', isEqualTo: cls);
-      }
-    } else if (_selectedClass != 'All') {
-      q = q.where('className', isEqualTo: _selectedClass);
-    }
-
-    // ✅ FIX: removed orderBy — avoids composite index requirement
-    // Sorting done client-side below
-    return q.snapshots();
-  }
-
-  Widget _tag(String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10)),
-        child: Text(text, style: GoogleFonts.poppins(
-            fontSize: 10, fontWeight: FontWeight.w700, color: color)),
-      );
-
-  Widget _drop(String label, String value, List<String> items,
-      void Function(String?) onChange, {bool enabled = true}) =>
-      DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-          labelText: label, isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.divider)),
+          ),
         ),
-        style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textPrimary),
-        items: items.map((i) => DropdownMenuItem(
-            value: i, child: Text(i, style: GoogleFonts.poppins(fontSize: 13)))).toList(),
-        onChanged: enabled ? onChange : null,
-      );
+      ],
+    );
+  }
 }
 
-// ─── Post Homework Tab ────────────────────────────────────────────────────────
-class _PostHomeworkTab extends StatefulWidget {
-  final dynamic user;
-  const _PostHomeworkTab({required this.user});
+// ─────────────────────────────────────────────────────────────────────────────
+// HOMEWORK LIST
+// ─────────────────────────────────────────────────────────────────────────────
+class _HomeworkList extends StatelessWidget {
+  final String className;
+  final bool canPost;
+  final UserModel user;
+
+  const _HomeworkList({
+    required this.className,
+    required this.canPost,
+    required this.user,
+  });
+
   @override
-  State<_PostHomeworkTab> createState() => _PostHomeworkTabState();
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('homework')
+          .where('className', isEqualTo: className)
+          .orderBy('postedAt', descending: true)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final docs = snap.data?.docs ?? [];
+
+        if (docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.assignment_outlined,
+                    size: 80, color: AppColors.textHint),
+                const SizedBox(height: 16),
+                Text('No homework posted yet',
+                    style: GoogleFonts.poppins(
+                        fontSize: 16, color: AppColors.textSecondary)),
+                if (canPost)
+                  Text('Tap the button below to post homework',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, color: AppColors.textHint)),
+              ],
+            ),
+          );
+        }
+
+        final entries =
+            docs.map((d) => HomeworkEntry.fromFirestore(d)).toList();
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          itemCount: entries.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, i) => _HomeworkCard(
+            entry: entries[i],
+            canDelete: canPost,
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _PostHomeworkTabState extends State<_PostHomeworkTab> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleCtrl = TextEditingController();
+// ─────────────────────────────────────────────────────────────────────────────
+// HOMEWORK CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _HomeworkCard extends StatelessWidget {
+  final HomeworkEntry entry;
+  final bool canDelete;
+  const _HomeworkCard({required this.entry, required this.canDelete});
+
+  bool get _isOverdue => entry.dueDate.isBefore(DateTime.now());
+  bool get _isDueToday {
+    final now = DateTime.now();
+    return entry.dueDate.year == now.year &&
+        entry.dueDate.month == now.month &&
+        entry.dueDate.day == now.day;
+  }
+
+  Color get _statusColor {
+    if (_isOverdue) return AppColors.error;
+    if (_isDueToday) return AppColors.warning;
+    return AppColors.success;
+  }
+
+  String get _statusLabel {
+    if (_isOverdue) return 'Overdue';
+    if (_isDueToday) return 'Due Today';
+    return 'Upcoming';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: entry.isUrgent
+            ? Border.all(color: AppColors.error.withValues(alpha: 0.5), width: 1.5)
+            : null,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.06),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.assignment_rounded,
+                      color: AppColors.accent, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(entry.subject,
+                          style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary)),
+                      Text(entry.className,
+                          style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                if (entry.isUrgent)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('URGENT',
+                        style: GoogleFonts.poppins(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.5)),
+                  ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(_statusLabel,
+                      style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: _statusColor)),
+                ),
+              ],
+            ),
+          ),
+
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Description
+                if (entry.description.isNotEmpty) ...[
+                  Text(entry.description,
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, color: AppColors.textPrimary,
+                          height: 1.5)),
+                  const SizedBox(height: 12),
+                ],
+
+                // Image thumbnail
+                if (entry.imageUrl != null) ...[
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => _HomeworkImageViewer(
+                              imageUrl: entry.imageUrl!,
+                              subject: entry.subject)),
+                    ),
+                    child: Container(
+                      height: 160,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.background,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            entry.imageUrl!,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (_, child, progress) =>
+                                progress == null
+                                    ? child
+                                    : const Center(
+                                        child: CircularProgressIndicator()),
+                          ),
+                          // View overlay
+                          Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.zoom_in_rounded,
+                                    color: Colors.white, size: 14),
+                                const SizedBox(width: 4),
+                                Text('View',
+                                    style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                              ]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Footer
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today_rounded,
+                        size: 14, color: AppColors.textHint),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Due: ${DateFormat('dd MMM yyyy').format(entry.dueDate)}',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _statusColor),
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.person_outline_rounded,
+                        size: 14, color: AppColors.textHint),
+                    const SizedBox(width: 4),
+                    Text(entry.postedByName,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: AppColors.textHint)),
+                    const Spacer(),
+                    if (canDelete)
+                      GestureDetector(
+                        onTap: () => _confirmDelete(context),
+                        child: const Icon(Icons.delete_outline_rounded,
+                            size: 20, color: AppColors.error),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Delete Homework',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Text('Delete ${entry.subject} homework?',
+            style: GoogleFonts.poppins()),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await FirebaseFirestore.instance
+                  .collection('homework')
+                  .doc(entry.id)
+                  .delete();
+              if (entry.imageUrl != null) {
+                try {
+                  await FirebaseStorage.instance
+                      .refFromURL(entry.imageUrl!)
+                      .delete();
+                } catch (_) {}
+              }
+            },
+            child: const Text('Delete',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST HOMEWORK SHEET
+// ─────────────────────────────────────────────────────────────────────────────
+class _PostHomeworkSheet extends StatefulWidget {
+  final String className;
+  final UserModel user;
+
+  const _PostHomeworkSheet({required this.className, required this.user});
+
+  @override
+  State<_PostHomeworkSheet> createState() => _PostHomeworkSheetState();
+}
+
+class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
   final _descCtrl = TextEditingController();
-
-  String _selectedClass = 'Class 1';
-  String _selectedSubject = 'Mathematics';
+  String _subject = _kSubjects.first;
   DateTime _dueDate = DateTime.now().add(const Duration(days: 1));
-  bool _saving = false;
-
-  final _classes = ['All Classes', 'Nursery', 'LKG', 'UKG',
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
-  final _subjects = ['Mathematics', 'Science', 'English', 'Hindi',
-    'Social Studies', 'Sanskrit', 'Computer', 'General Knowledge',
-    'Drawing', 'Physical Education'];
+  File? _image;
+  bool _isUrgent = false;
+  bool _posting = false;
+  double _uploadProgress = 0;
 
   @override
   void dispose() {
-    _titleCtrl.dispose(); _descCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
+  Future<void> _pickImageCamera() async {
+    final img = await ImagePicker()
+        .pickImage(source: ImageSource.camera, imageQuality: 80);
+    if (img != null) setState(() => _image = File(img.path));
+  }
+
+  Future<void> _pickImageGallery() async {
+    final img = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (img != null) setState(() => _image = File(img.path));
+  }
+
+  Future<void> _post() async {
+    if (_descCtrl.text.trim().isEmpty && _image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('Add a description or a photo to post homework')));
+      return;
+    }
+    setState(() => _posting = true);
     try {
+      String? imageUrl;
+
+      if (_image != null) {
+        final ref = FirebaseStorage.instance.ref().child(
+            'homework/${widget.className}/$_subject/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final task = ref.putFile(_image!);
+        task.snapshotEvents.listen((s) {
+          setState(() => _uploadProgress =
+              s.bytesTransferred / (s.totalBytes == 0 ? 1 : s.totalBytes));
+        });
+        final snap = await task;
+        imageUrl = await snap.ref.getDownloadURL();
+      }
+
       await FirebaseFirestore.instance.collection('homework').add({
-        'title': _titleCtrl.text.trim(),
+        'subject': _subject,
         'description': _descCtrl.text.trim(),
-        'subject': _selectedSubject,
-        'className': _selectedClass,
+        'imageUrl': imageUrl,
+        'className': widget.className,
         'dueDate': Timestamp.fromDate(_dueDate),
-        'postedBy': widget.user?.uid ?? '',
-        'postedByName': widget.user?.fullName ?? 'Teacher',
-        'createdAt': FieldValue.serverTimestamp(),
+        'postedBy': widget.user.uid,
+        'postedByName': widget.user.fullName,
+        'postedAt': FieldValue.serverTimestamp(),
+        'isUrgent': _isUrgent,
       });
-      _titleCtrl.clear(); _descCtrl.clear();
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('✅ Homework posted successfully!'),
-            backgroundColor: AppColors.success));
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text('✅ Homework posted for ${widget.className}!'),
+          backgroundColor: AppColors.success,
+        ));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error: $e'), backgroundColor: AppColors.error));
+        setState(() => _posting = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // For Class — full width
-          _labelWrap('For Class *',
-              DropdownButtonFormField<String>(
-                value: _selectedClass,
-                decoration: _dec('Class'),
-                style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textPrimary),
-                items: _classes.map((c) => DropdownMenuItem(
-                    value: c, child: Text(c, style: GoogleFonts.poppins(fontSize: 13)))).toList(),
-                onChanged: (v) => setState(() => _selectedClass = v!),
-              )),
+    return Container(
+      decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      padding: EdgeInsets.only(
+        left: 20, right: 20, top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Post Homework',
+              style: GoogleFonts.poppins(
+                  fontSize: 18, fontWeight: FontWeight.w700)),
+          Text(widget.className,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          const SizedBox(height: 20),
+
+          // Subject
+          Text('Subject',
+              style: GoogleFonts.poppins(
+                  fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.divider),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _subject,
+                isExpanded: true,
+                items: _kSubjects
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: GoogleFonts.poppins(fontSize: 14))))
+                    .toList(),
+                onChanged: (v) => setState(() => _subject = v!),
+              ),
+            ),
+          ),
           const SizedBox(height: 14),
 
-          // Subject — full width
-          _labelWrap('Subject *',
-              DropdownButtonFormField<String>(
-                value: _selectedSubject,
-                decoration: _dec('Subject'),
-                style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textPrimary),
-                items: _subjects.map((s) => DropdownMenuItem(
-                    value: s, child: Text(s, style: GoogleFonts.poppins(fontSize: 13)))).toList(),
-                onChanged: (v) => setState(() => _selectedSubject = v!),
-              )),
+          // Description (text)
+          TextField(
+            controller: _descCtrl,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Homework Instructions',
+              hintText:
+                  'Type homework details here (or attach a photo below)',
+              prefixIcon: Icon(Icons.edit_note_rounded),
+              alignLabelWithHint: true,
+            ),
+          ),
           const SizedBox(height: 14),
 
-          // Title
-          _labelWrap('Homework Title *',
-              TextFormField(
-                controller: _titleCtrl,
-                style: GoogleFonts.poppins(fontSize: 14),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                decoration: _dec('e.g. Chapter 3 Exercise 2 — Q1 to Q10'),
-              )),
-          const SizedBox(height: 14),
+          // Image attachment
+          Text('Attach Photo (optional)',
+              style: GoogleFonts.poppins(
+                  fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(
+            'Take a photo of the board or diary page',
+            style: GoogleFonts.poppins(
+                fontSize: 12, color: AppColors.textHint),
+          ),
+          const SizedBox(height: 10),
 
-          // Description
-          _labelWrap('Description / Instructions',
-              TextFormField(
-                controller: _descCtrl,
-                maxLines: 4,
-                style: GoogleFonts.poppins(fontSize: 14),
-                decoration: _dec('Describe what students need to do...'),
-              )),
+          if (_image == null)
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: _pickImageCamera,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(children: [
+                      const Icon(Icons.camera_alt_rounded,
+                          color: AppColors.accent, size: 28),
+                      const SizedBox(height: 6),
+                      Text('Camera',
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.accent)),
+                    ]),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _pickImageGallery,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: AppColors.info.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(children: [
+                      const Icon(Icons.photo_library_rounded,
+                          color: AppColors.info, size: 28),
+                      const SizedBox(height: 6),
+                      Text('Gallery',
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.info)),
+                    ]),
+                  ),
+                ),
+              ),
+            ])
+          else
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.file(_image!,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover),
+                ),
+                Positioned(
+                  top: 8, right: 8,
+                  child: GestureDetector(
+                    onTap: () => setState(() => _image = null),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                          color: Colors.black54, shape: BoxShape.circle),
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(Icons.close_rounded,
+                          color: Colors.white, size: 18),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
           const SizedBox(height: 14),
 
           // Due date
-          _labelWrap('Due Date *',
-              GestureDetector(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _dueDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 90)),
-                    builder: (ctx, child) => Theme(
-                      data: Theme.of(ctx).copyWith(
-                          colorScheme: const ColorScheme.light(
-                              primary: Color(0xFF7C3AED))),
-                      child: child!,
-                    ),
-                  );
-                  if (picked != null) setState(() => _dueDate = picked);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: AppColors.divider),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today_rounded,
-                        size: 18, color: Color(0xFF7C3AED)),
-                    const SizedBox(width: 10),
-                    Text(DateFormat('dd MMMM yyyy').format(_dueDate),
-                        style: GoogleFonts.poppins(
-                            fontSize: 14, fontWeight: FontWeight.w600,
-                            color: const Color(0xFF7C3AED))),
-                    const Spacer(),
-                    const Icon(Icons.edit_rounded,
-                        size: 16, color: AppColors.textHint),
-                  ]),
-                ),
-              )),
-          const SizedBox(height: 28),
-
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+          GestureDetector(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _dueDate,
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 90)),
+              );
+              if (picked != null) setState(() => _dueDate = picked);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
               ),
-              child: _saving
-                  ? const SizedBox(width: 24, height: 24,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5))
-                  : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Post Homework',
-                          style: GoogleFonts.poppins(
-                              fontSize: 16, fontWeight: FontWeight.w700,
-                              color: Colors.white)),
-                    ]),
+              child: Row(children: [
+                const Icon(Icons.event_rounded,
+                    color: AppColors.accent),
+                const SizedBox(width: 12),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Due Date',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                  Text(
+                    DateFormat('EEEE, dd MMMM yyyy').format(_dueDate),
+                    style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary),
+                  ),
+                ]),
+                const Spacer(),
+                const Icon(Icons.edit_calendar_rounded,
+                    color: AppColors.textHint, size: 18),
+              ]),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 12),
+
+          // Urgent toggle
+          GestureDetector(
+            onTap: () => setState(() => _isUrgent = !_isUrgent),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _isUrgent
+                    ? AppColors.error.withValues(alpha: 0.06)
+                    : AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: _isUrgent
+                        ? AppColors.error.withValues(alpha: 0.4)
+                        : AppColors.divider),
+              ),
+              child: Row(children: [
+                Icon(Icons.warning_rounded,
+                    color:
+                        _isUrgent ? AppColors.error : AppColors.textHint),
+                const SizedBox(width: 12),
+                Text('Mark as Urgent',
+                    style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: _isUrgent
+                            ? AppColors.error
+                            : AppColors.textPrimary)),
+                const Spacer(),
+                Switch(
+                  value: _isUrgent,
+                  onChanged: (v) => setState(() => _isUrgent = v),
+                  activeColor: AppColors.error,
+                ),
+              ]),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          if (_posting) ...[
+            Text(
+              _image != null
+                  ? 'Uploading image... ${(_uploadProgress * 100).toStringAsFixed(0)}%'
+                  : 'Posting...',
+              style: GoogleFonts.poppins(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: _image != null ? _uploadProgress : null,
+              backgroundColor: AppColors.divider,
+              valueColor:
+                  const AlwaysStoppedAnimation(AppColors.accent),
+            ),
+          ] else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _post,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent),
+                icon: const Icon(Icons.send_rounded),
+                label: const Text('Post Homework'),
+              ),
+            ),
         ]),
       ),
     );
   }
+}
 
-  Widget _labelWrap(String label, Widget child) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: GoogleFonts.poppins(
-            fontSize: 13, fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary)),
-        const SizedBox(height: 6),
-        child,
-      ]);
+// ─────────────────────────────────────────────────────────────────────────────
+// HOMEWORK IMAGE VIEWER (no screenshots)
+// ─────────────────────────────────────────────────────────────────────────────
+class _HomeworkImageViewer extends StatefulWidget {
+  final String imageUrl;
+  final String subject;
 
-  InputDecoration _dec(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: GoogleFonts.poppins(fontSize: 12, color: AppColors.textHint),
-    filled: true, fillColor: Colors.white,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-    enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.divider)),
-    focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2)),
-    errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.error)),
-  );
+  const _HomeworkImageViewer(
+      {required this.imageUrl, required this.subject});
+
+  @override
+  State<_HomeworkImageViewer> createState() => _HomeworkImageViewerState();
+}
+
+class _HomeworkImageViewerState extends State<_HomeworkImageViewer> {
+  @override
+  void initState() {
+    super.initState();
+    _block();
+  }
+
+  Future<void> _block() async {
+    try {
+      await const MethodChannel('flutter_windowmanager')
+          .invokeMethod('addFlags', {'flags': 0x00002000});
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _unblock();
+    super.dispose();
+  }
+
+  Future<void> _unblock() async {
+    try {
+      await const MethodChannel('flutter_windowmanager')
+          .invokeMethod('clearFlags', {'flags': 0x00002000});
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: AppColors.accentDark,
+        foregroundColor: Colors.white,
+        title: Text('${widget.subject} — Homework',
+            style: GoogleFonts.poppins(
+                fontSize: 15, fontWeight: FontWeight.w600)),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 6.0,
+          child: Image.network(
+            widget.imageUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (_, child, progress) => progress == null
+                ? child
+                : const Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.accent)),
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        color: AppColors.accentDark,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          ),
+          const Spacer(),
+          Text('Pinch to zoom',
+              style: GoogleFonts.poppins(
+                  color: Colors.white54, fontSize: 12)),
+          const Spacer(),
+          const SizedBox(width: 48),
+        ]),
+      ),
+    );
+  }
 }

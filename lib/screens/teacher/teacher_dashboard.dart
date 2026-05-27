@@ -231,7 +231,7 @@ class _HomeTab extends StatelessWidget {
                   // ✅ Study Notes — has both browse + upload tabs inside
                   _card(Icons.folder_open_rounded, 'Study\nNotes',
                       const Color(0xFF0891B2),
-                      () => _go(context, const StudyMaterialScreen())),
+                      () => _go(context, const StudyNotesScreen())),
                   _card(Icons.photo_library_rounded, 'Gallery',
                       const Color(0xFF7C3AED),
                       () => _go(context, const GalleryScreen())),

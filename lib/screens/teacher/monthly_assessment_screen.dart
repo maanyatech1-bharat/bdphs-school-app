@@ -1059,7 +1059,7 @@ class _ReportCardsTabState extends State<_ReportCardsTab> {
     } else if (_filterClass != 'All') {
       q = q.where('className', isEqualTo: _filterClass);
     }
-    return q.orderBy('createdAt', descending: true).snapshots();
+    return q.snapshots();
   }
 
   Widget _drop(String label, String value, List<String> items,

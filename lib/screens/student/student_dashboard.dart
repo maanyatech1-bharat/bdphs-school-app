@@ -284,7 +284,7 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, StudyNotesScreen())),
                   _card(Icons.library_books_rounded, 'Study Material',
                       const Color(0xFF059669),
-                      () => _go(context, const StudyMaterialScreen())),
+                      () => _go(context, const StudyNotesScreen())),
                 ]),
                 const SizedBox(height: 20),
 
