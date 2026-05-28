@@ -27,7 +27,6 @@ import '../shared/progress_screen.dart';
 import '../shared/syllabus_gallery_material.dart' hide StudyMaterialScreen;
 import '../shared/profile_edit_screen.dart'; // ✅ Profile edit
 import '../shared/study_notes_screen.dart';
-import '../shared/study_material_screen.dart';
 import '../teacher/enter_marks_screen.dart'; // ✅ Student views own results
 import '../shared/chat_screen.dart';          // ✅ Chat
 import '../shared/meeting_screen.dart';       // ✅ Meetings

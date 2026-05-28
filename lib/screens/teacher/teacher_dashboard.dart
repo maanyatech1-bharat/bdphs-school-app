@@ -21,7 +21,6 @@ import '../shared/ai_chatbot_screen.dart';
 import '../shared/dictionary_screen.dart';
 import '../shared/profile_edit_screen.dart';
 import '../shared/homework_screen.dart';          // ✅ Fixed
-import '../shared/study_material_screen.dart';    // ✅ Fixed — now has StudyMaterialScreen
 import '../shared/study_notes_screen.dart';       // ✅ Fixed
 import '../shared/quiz_screen.dart';              // ✅ Fixed — QuizListScreen
 

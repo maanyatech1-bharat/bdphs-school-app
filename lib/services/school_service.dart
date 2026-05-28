@@ -20,7 +20,7 @@ class ResultModel {
     obtainedMarks: (m['obtainedMarks'] as num?)?.toDouble() ?? 0,
     grade: m['grade'] ?? '', month: m['month'] ?? '', year: m['year'] ?? DateTime.now().year,
     enteredBy: m['enteredBy'] ?? '', enteredByName: m['enteredByName'] ?? '',
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {
     'studentId': studentId, 'studentName': studentName, 'className': className,
@@ -51,7 +51,7 @@ class MonthlyAssessment {
     uniformGrade: m['uniformGrade'] ?? 'A', punctualityGrade: m['punctualityGrade'] ?? 'A',
     remarks: m['remarks'] ?? '', assessedBy: m['assessedBy'] ?? '',
     assessedByName: m['assessedByName'] ?? '',
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {
     'studentId': studentId, 'studentName': studentName, 'className': className,
@@ -72,9 +72,9 @@ class HomeworkModel {
   factory HomeworkModel.fromMap(Map<String, dynamic> m, String id) => HomeworkModel(
     id: id, className: m['className'] ?? '', subject: m['subject'] ?? '',
     title: m['title'] ?? '', description: m['description'] ?? '',
-    dueDate: (m['dueDate'] as dynamic)?.toDate() ?? DateTime.now(),
+    dueDate: m['dueDate'] is Timestamp ? (m['dueDate'] as Timestamp).toDate() : DateTime.now(),
     postedBy: m['postedBy'] ?? '', postedByName: m['postedByName'] ?? '',
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'className': className, 'subject': subject,
     'title': title, 'description': description, 'dueDate': dueDate,
@@ -97,12 +97,12 @@ class LeaveModel {
   factory LeaveModel.fromMap(Map<String, dynamic> m, String id) => LeaveModel(
     id: id, studentId: m['studentId'] ?? '', studentName: m['studentName'] ?? '',
     className: m['className'] ?? '', reason: m['reason'] ?? '',
-    fromDate: (m['fromDate'] as dynamic)?.toDate() ?? DateTime.now(),
-    toDate: (m['toDate'] as dynamic)?.toDate() ?? DateTime.now(),
+    fromDate: m['fromDate'] is Timestamp ? (m['fromDate'] as Timestamp).toDate() : DateTime.now(),
+    toDate: m['toDate'] is Timestamp ? (m['toDate'] as Timestamp).toDate() : DateTime.now(),
     status: m['status'] ?? 'pending', reviewedBy: m['reviewedBy'],
     reviewedByName: m['reviewedByName'],
-    appliedAt: (m['appliedAt'] as dynamic)?.toDate() ?? DateTime.now(),
-    reviewedAt: (m['reviewedAt'] as dynamic)?.toDate());
+    appliedAt: m['appliedAt'] is Timestamp ? (m['appliedAt'] as Timestamp).toDate() : DateTime.now(),
+    reviewedAt: m['reviewedAt'] is Timestamp ? (m['reviewedAt'] as Timestamp).toDate() : null);
 
   Map<String, dynamic> toMap() => {'studentId': studentId, 'studentName': studentName,
     'className': className, 'reason': reason, 'fromDate': fromDate, 'toDate': toDate,
@@ -125,7 +125,7 @@ class BookModel {
     author: m['author'] ?? '', publisher: m['publisher'] ?? '',
     subject: m['subject'] ?? '', addedBy: m['addedBy'] ?? '',
     addedByName: m['addedByName'] ?? '', description: m['description'],
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'className': className, 'title': title,
     'author': author, 'publisher': publisher, 'subject': subject,
@@ -147,7 +147,7 @@ class StudyMaterial {
     title: m['title'] ?? '', description: m['description'] ?? '',
     fileUrl: m['fileUrl'] ?? '', fileType: m['fileType'] ?? 'note',
     addedBy: m['addedBy'] ?? '', addedByName: m['addedByName'] ?? '',
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'className': className, 'subject': subject,
     'title': title, 'description': description, 'fileUrl': fileUrl,
@@ -173,7 +173,7 @@ class QuizModel {
     questions: (m['questions'] as List<dynamic>? ?? [])
         .map((q) => QuizQuestion.fromMap(q as Map<String, dynamic>)).toList(),
     timeLimitMinutes: m['timeLimitMinutes'] ?? 10,
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'className': className, 'subject': subject,
     'chapter': chapter, 'title': title, 'createdBy': createdBy,
@@ -214,7 +214,7 @@ class QuizAttempt {
     studentName: m['studentName'] ?? '', className: m['className'] ?? '',
     answers: List<int>.from(m['answers'] ?? []),
     score: m['score'] ?? 0, totalQuestions: m['totalQuestions'] ?? 0,
-    attemptedAt: (m['attemptedAt'] as dynamic)?.toDate() ?? DateTime.now());
+    attemptedAt: m['attemptedAt'] is Timestamp ? (m['attemptedAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'quizId': quizId, 'studentId': studentId,
     'studentName': studentName, 'className': className, 'answers': answers,
@@ -233,7 +233,7 @@ class SchoolVideo {
     id: id, title: m['title'] ?? '', description: m['description'] ?? '',
     url: m['url'] ?? '', videoType: m['videoType'] ?? 'youtube',
     postedBy: m['postedBy'] ?? '', postedByName: m['postedByName'] ?? '',
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'title': title, 'description': description,
     'url': url, 'videoType': videoType, 'postedBy': postedBy,
@@ -259,7 +259,7 @@ class AlertModel {
   factory AlertModel.fromMap(Map<String, dynamic> m, String id) => AlertModel(
     id: id, message: m['message'] ?? '', type: m['type'] ?? 'info',
     postedBy: m['postedBy'] ?? '', isActive: m['isActive'] ?? true,
-    createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
+    createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
 
   Map<String, dynamic> toMap() => {'message': message, 'type': type,
     'postedBy': postedBy, 'isActive': isActive, 'createdAt': createdAt};
@@ -294,7 +294,7 @@ class SchoolService {
 
   // ── RESULTS ───────────────────────────────────────────────────────────────
   Future<bool> saveResult(ResultModel r) async {
-    try { await _results.add(r.toMap()); return true; } catch (_) { return false; }
+    try { await _results.add(r.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<ResultModel>> getStudentResults(String studentId) =>
@@ -311,12 +311,12 @@ class SchoolService {
               .toList()..sort((a, b) => b.percentage.compareTo(a.percentage)));
 
   Future<bool> deleteResult(String id) async {
-    try { await _results.doc(id).delete(); return true; } catch (_) { return false; }
+    try { await _results.doc(id).delete(); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── MONTHLY ASSESSMENT ────────────────────────────────────────────────────
   Future<bool> saveAssessment(MonthlyAssessment a) async {
-    try { await _assessments.add(a.toMap()); return true; } catch (_) { return false; }
+    try { await _assessments.add(a.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<MonthlyAssessment>> getStudentAssessments(String studentId) =>
@@ -341,7 +341,7 @@ class SchoolService {
 
   // ── HOMEWORK ──────────────────────────────────────────────────────────────
   Future<bool> postHomework(HomeworkModel hw) async {
-    try { await _homework.add(hw.toMap()); return true; } catch (_) { return false; }
+    try { await _homework.add(hw.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<HomeworkModel>> getHomework(String className) =>
@@ -351,12 +351,12 @@ class SchoolService {
               .toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
 
   Future<bool> deleteHomework(String id) async {
-    try { await _homework.doc(id).delete(); return true; } catch (_) { return false; }
+    try { await _homework.doc(id).delete(); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── LEAVES ────────────────────────────────────────────────────────────────
   Future<bool> applyLeave(LeaveModel l) async {
-    try { await _leaves.add(l.toMap()); return true; } catch (_) { return false; }
+    try { await _leaves.add(l.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<LeaveModel>> getPendingLeaves(String className) =>
@@ -379,12 +379,12 @@ class SchoolService {
       await _leaves.doc(id).update({'status': status, 'reviewedBy': by,
         'reviewedByName': byName, 'reviewedAt': DateTime.now()});
       return true;
-    } catch (_) { return false; }
+    } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── BOOKS ─────────────────────────────────────────────────────────────────
   Future<bool> addBook(BookModel b) async {
-    try { await _books.add(b.toMap()); return true; } catch (_) { return false; }
+    try { await _books.add(b.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<BookModel>> getBooks(String className) =>
@@ -394,12 +394,12 @@ class SchoolService {
               .toList()..sort((a, b) => a.subject.compareTo(b.subject)));
 
   Future<bool> deleteBook(String id) async {
-    try { await _books.doc(id).delete(); return true; } catch (_) { return false; }
+    try { await _books.doc(id).delete(); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── STUDY MATERIAL ────────────────────────────────────────────────────────
   Future<bool> addMaterial(StudyMaterial m) async {
-    try { await _materials.add(m.toMap()); return true; } catch (_) { return false; }
+    try { await _materials.add(m.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<StudyMaterial>> getMaterials(String className) =>
@@ -409,17 +409,17 @@ class SchoolService {
               .toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
 
   Future<bool> deleteMaterial(String id) async {
-    try { await _materials.doc(id).delete(); return true; } catch (_) { return false; }
+    try { await _materials.doc(id).delete(); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── QUIZ ──────────────────────────────────────────────────────────────────
   Future<bool> createQuiz(QuizModel q) async {
-    try { await _quizzes.add(q.toMap()); return true; } catch (_) { return false; }
+    try { await _quizzes.add(q.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ✅ FIX: Returns ALL quizzes (used in QuizListScreen when class = 'All')
   Stream<List<QuizModel>> getAllQuizzes() =>
-      _quizzes.snapshots()
+      _quizzes.limit(100).snapshots()
           .map((s) => s.docs
               .map((d) => QuizModel.fromMap(d.data() as Map<String, dynamic>, d.id))
               .toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
@@ -431,7 +431,7 @@ class SchoolService {
               .toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
 
   Future<bool> submitAttempt(QuizAttempt a) async {
-    try { await _attempts.add(a.toMap()); return true; } catch (_) { return false; }
+    try { await _attempts.add(a.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Future<bool> hasAttempted(String quizId, String studentId) async {
@@ -456,35 +456,35 @@ class SchoolService {
               .toList()..sort((a, b) => b.attemptedAt.compareTo(a.attemptedAt)));
 
   Future<bool> deleteQuiz(String id) async {
-    try { await _quizzes.doc(id).delete(); return true; } catch (_) { return false; }
+    try { await _quizzes.doc(id).delete(); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── VIDEOS ────────────────────────────────────────────────────────────────
   Future<bool> postVideo(SchoolVideo v) async {
-    try { await _videos.add(v.toMap()); return true; } catch (_) { return false; }
+    try { await _videos.add(v.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<SchoolVideo>> getVideos() =>
-      _videos.snapshots().map((s) => s.docs
+      _videos.limit(50).snapshots().map((s) => s.docs
           .map((d) => SchoolVideo.fromMap(d.data() as Map<String, dynamic>, d.id))
           .toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
 
   Future<bool> deleteVideo(String id) async {
-    try { await _videos.doc(id).delete(); return true; } catch (_) { return false; }
+    try { await _videos.doc(id).delete(); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   // ── ALERTS ────────────────────────────────────────────────────────────────
   Future<bool> postAlert(AlertModel a) async {
-    try { await _alerts.add(a.toMap()); return true; } catch (_) { return false; }
+    try { await _alerts.add(a.toMap()); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 
   Stream<List<AlertModel>> getActiveAlerts() =>
-      _alerts.where('isActive', isEqualTo: true).snapshots()
+      _alerts.where('isActive', isEqualTo: true).limit(10).snapshots()
           .map((s) => s.docs
               .map((d) => AlertModel.fromMap(d.data() as Map<String, dynamic>, d.id))
               .toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
 
   Future<bool> deactivateAlert(String id) async {
-    try { await _alerts.doc(id).update({'isActive': false}); return true; } catch (_) { return false; }
+    try { await _alerts.doc(id).update({'isActive': false}); return true; } catch (e) { print('SchoolService error: $e'); return false; }
   }
 }

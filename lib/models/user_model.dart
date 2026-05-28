@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 // lib/models/user_model.dart
 
 enum UserRole { student, teacher, admin }
@@ -68,8 +69,8 @@ class UserModel {
       role: UserRoleExtension.fromString(map['role'] ?? 'student'),
       approvalStatus: _parseApproval(map['approvalStatus']),
       photoUrl: map['photoUrl'],
-      createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
-      approvedAt: (map['approvedAt'] as dynamic)?.toDate(),
+      createdAt: map['createdAt'] is Timestamp ? (map['createdAt'] as Timestamp).toDate() : DateTime.now(),
+      approvedAt: map['approvedAt'] is Timestamp ? (map['approvedAt'] as Timestamp).toDate() : null,
       approvedBy: map['approvedBy'],
       isActive: map['isActive'] ?? true,
     );
@@ -160,14 +161,14 @@ class StudentModel extends UserModel {
       phone: map['phone'] ?? '',
       approvalStatus: UserModel._parseApproval(map['approvalStatus']),
       photoUrl: map['photoUrl'],
-      createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
-      approvedAt: (map['approvedAt'] as dynamic)?.toDate(),
+      createdAt: map['createdAt'] is Timestamp ? (map['createdAt'] as Timestamp).toDate() : DateTime.now(),
+      approvedAt: map['approvedAt'] is Timestamp ? (map['approvedAt'] as Timestamp).toDate() : null,
       approvedBy: map['approvedBy'],
       isActive: map['isActive'] ?? true,
       fatherName: map['fatherName'] ?? '',
       motherName: map['motherName'] ?? '',
       gender: map['gender'] ?? '',
-      dateOfBirth: (map['dateOfBirth'] as dynamic)?.toDate() ?? DateTime.now(),
+      dateOfBirth: map['dateOfBirth'] is Timestamp ? (map['dateOfBirth'] as Timestamp).toDate() : DateTime.now(),
       address: map['address'] ?? '',
       className: map['className'] ?? '',
       rollNumber: map['rollNumber'] ?? '',
@@ -202,6 +203,13 @@ class StudentModel extends UserModel {
       age--;
     }
     return age;
+  }
+
+  // Masked aadhar — never show full number in UI
+  String get maskedAadhar {
+    if (aadharNumber.length < 4) return 'XXXX-XXXX-XXXX';
+    final last4 = aadharNumber.substring(aadharNumber.length - 4);
+    return 'XXXX-XXXX-$last4';
   }
 }
 
@@ -241,8 +249,8 @@ class TeacherModel extends UserModel {
       phone: map['phone'] ?? '',
       approvalStatus: UserModel._parseApproval(map['approvalStatus']),
       photoUrl: map['photoUrl'],
-      createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
-      approvedAt: (map['approvedAt'] as dynamic)?.toDate(),
+      createdAt: map['createdAt'] is Timestamp ? (map['createdAt'] as Timestamp).toDate() : DateTime.now(),
+      approvedAt: map['approvedAt'] is Timestamp ? (map['approvedAt'] as Timestamp).toDate() : null,
       approvedBy: map['approvedBy'],
       isActive: map['isActive'] ?? true,
       employeeId: map['employeeId'] ?? '',
@@ -250,7 +258,7 @@ class TeacherModel extends UserModel {
       subject: map['subject'] ?? '',
       address: map['address'] ?? '',
       assignedClasses: List<String>.from(map['assignedClasses'] ?? []),
-      joiningDate: (map['joiningDate'] as dynamic)?.toDate() ?? DateTime.now(),
+      joiningDate: map['joiningDate'] is Timestamp ? (map['joiningDate'] as Timestamp).toDate() : DateTime.now(),
     );
   }
 
