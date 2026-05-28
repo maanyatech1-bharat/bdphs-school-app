@@ -14,6 +14,8 @@ import 'package:myapp/screens/admin/admin_dashboard.dart';
 import 'package:myapp/screens/teacher/teacher_dashboard.dart';
 import 'package:myapp/screens/student/student_dashboard.dart';
 import 'screens/auth/splash_screen.dart';
+import 'services/fcm_service.dart';
+import 'services/fcm_service.dart';
 
 void main() async {
   FlutterNativeSplash.preserve(widgetsBinding: WidgetsFlutterBinding.ensureInitialized());
@@ -22,6 +24,8 @@ void main() async {
   await dotenv.load(fileName: '.env'); // ✅ Load API keys from .env
   await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform);
+  await FCMService().initialize();
+  await FCMService().initialize();
   FlutterNativeSplash.remove();
   runApp(const BDPHSApp());
 }
