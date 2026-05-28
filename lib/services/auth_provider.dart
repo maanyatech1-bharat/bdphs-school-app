@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
+import 'fcm_service.dart';
 import 'auth_service.dart';
 
 class AppAuthProvider extends ChangeNotifier {
@@ -81,6 +82,16 @@ class AppAuthProvider extends ChangeNotifier {
 
       _isLoading = false;
 
+      // Subscribe to FCM topics based on role
+      if (_currentUser != null) {
+        final role = _currentUser!.role.name;
+        String? className;
+        if (_currentUser is StudentModel) {
+          className = (_currentUser as StudentModel).className;
+        }
+        FCMService().subscribeUserTopics(role: role, className: className);
+        FCMService().saveTokenToFirestore(_currentUser!.uid, role);
+      }
       _notify();
     });
   }
