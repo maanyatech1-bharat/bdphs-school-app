@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/fcm_service.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_provider.dart';
 import '../../models/user_model.dart';
@@ -267,6 +268,18 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
         });
       }
       await batch.commit();
+      // Notify each student
+      for (final s in _students) {
+        final uid = s['uid'] as String;
+        final raw = _ctrl[uid]?.text.trim() ?? '';
+        if (raw.isEmpty) continue;
+        await NotificationSender.notifyUser(
+          userId: uid,
+          title: '📊 Marks Updated - \$_selectedSubject',
+          body: "${s['name']}, your $_selectedExam marks for $_selectedSubject have been uploaded.",
+          type: 'marks',
+        );
+      }
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('✅ Marks saved successfully!'),
           backgroundColor: AppColors.success));

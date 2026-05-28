@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/fcm_service.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../services/auth_provider.dart';
@@ -461,6 +462,17 @@ class _LeaveListTabState extends State<_LeaveListTab> {
         'adminRemark': remarkCtrl.text.trim(),
         'processedAt': FieldValue.serverTimestamp(),
       });
+      // Notify student
+      final leaveDoc = await FirebaseFirestore.instance.collection('leaves').doc(docId).get();
+      final applicantId = (leaveDoc.data() as Map?)?['applicantId'] as String? ?? '';
+      await NotificationSender.notifyUser(
+        userId: applicantId,
+        title: status == 'approved' ? '✅ Leave Approved' : '❌ Leave Rejected',
+        body: status == 'approved'
+            ? 'Your leave request has been approved.'
+            : 'Your leave request has been rejected.',
+        type: 'leave',
+      );
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
             content: Text(status == 'approved'

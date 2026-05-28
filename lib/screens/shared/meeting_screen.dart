@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/fcm_service.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
@@ -532,6 +533,15 @@ class _ScheduleMeetingState extends State<_ScheduleMeeting> {
         _time = const TimeOfDay(hour: 10, minute: 0);
       });
 
+      // Notify class
+      await NotificationSender.notifyClass(
+        className: _class,
+        title: '📅 Meeting Scheduled - \${_titleCtrl.text.trim()}',
+        body: 'A meeting has been scheduled. Check the meetings section for details.',
+        type: 'meeting',
+        senderId: widget.user?.uid,
+        senderName: widget.user?.fullName,
+      );
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('✅ Meeting scheduled! Students will see it.'),
