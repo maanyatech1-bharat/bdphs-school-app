@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import '../../theme/app_theme.dart';
 
 // ─── Message ───────────────────────────────────────────────────────────────────
@@ -66,15 +66,36 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
   final List<_Msg> _msgs = [];
   int  _catIdx   = 0;
   bool _loading  = false;
-  late final String _apiKey;
-  late final bool   _keyMissing;
+  String _apiKey = '';
+  bool _keyMissing = true;
 
   @override
   void initState() {
     super.initState();
-    _apiKey     = dotenv.env['GEMINI_API_KEY'] ?? '';
-    _keyMissing = _apiKey.isEmpty || _apiKey == 'YOUR_GEMINI_API_KEY';
-    if (!_keyMissing) _addWelcome();
+    _apiKey     = '';
+    _keyMissing = true;
+    _loadApiKey();
+  }
+
+  Future<void> _loadApiKey() async {
+    try {
+      final rc = FirebaseRemoteConfig.instance;
+      await rc.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: Duration.zero,
+      ));
+      await rc.fetchAndActivate();
+      final key = rc.getString('gemini_api_key');
+      if (mounted) {
+        setState(() {
+          _apiKey     = key;
+          _keyMissing = key.isEmpty || key == 'YOUR_GEMINI_API_KEY';
+        });
+        if (!_keyMissing) _addWelcome();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _keyMissing = true);
+    }
   }
 
   @override

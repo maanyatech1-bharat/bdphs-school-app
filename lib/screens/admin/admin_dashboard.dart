@@ -1,5 +1,6 @@
 // lib/screens/admin/admin_dashboard.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -229,7 +230,7 @@ class _HomeTab extends StatelessWidget {
               _FCard(Icons.menu_book_rounded, 'Books', const Color(0xFF059669),
                   () => _go(context, const BooksScreen())),
               _FCard(Icons.play_circle_rounded, 'Videos', const Color(0xFFDC2626),
-                  () => _go(context, const VideosScreen())),
+                  () => _go(context, VideoScreen(user: user!))),
               _FCard(Icons.smart_toy_rounded, 'AI Tutor', const Color(0xFF7C3AED),
                   () => _go(context, AiChatbotScreen())),
               _FCard(Icons.notifications_rounded, 'Notices', AppColors.primary,
@@ -267,6 +268,10 @@ class _HomeTab extends StatelessWidget {
                   () => _go(context, const AdminAttendanceViewScreen())),
               _FCard(Icons.checklist_rounded, 'Syllabus', const Color(0xFF16A34A),
                   () => _go(context, const SyllabusScreen())),
+                _FCard(Icons.language_rounded, 'Our Website', const Color(0xFF0EA5E9),
+                  () => launchUrl(Uri.parse('https://bdphs.in'), mode: LaunchMode.externalApplication)),
+                _FCard(Icons.payment_rounded, 'Pay Fees', const Color(0xFF10B981),
+                  () => launchUrl(Uri.parse('https://bdphs.in/fees.php'), mode: LaunchMode.externalApplication)),
             ]),
             const SizedBox(height: 24),
           ],

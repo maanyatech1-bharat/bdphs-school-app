@@ -1,6 +1,9 @@
 // lib/screens/shared/syllabus_gallery_material.dart
 // Contains: SyllabusScreen, GalleryScreen, StudyMaterialScreen
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -239,14 +242,16 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   void _showAddPhoto(BuildContext context, UserModel user) {
     final titleCtrl = TextEditingController();
-    final urlCtrl = TextEditingController();
     final albumCtrl = TextEditingController();
+    String? pickedFilePath;
+    String? pickedFileName;
+    double uploadProgress = 0;
     bool isSaving = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setModal) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.65,
+        height: MediaQuery.of(ctx).size.height * 0.72,
         decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         child: Column(children: [
           Container(margin: const EdgeInsets.only(top: 12), width: 48, height: 4,
@@ -259,38 +264,92 @@ class _GalleryScreenState extends State<GalleryScreen> {
             IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
           ])),
           const Divider(height: 20),
+          if (isSaving) LinearProgressIndicator(value: uploadProgress, backgroundColor: Colors.grey[200], color: AppColors.accent),
           Expanded(child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
             child: Column(children: [
-              AppTextField(label: 'Photo Title', hint: 'e.g. Annual Day 2024', controller: titleCtrl, prefixIcon: Icons.title_rounded),
-              const SizedBox(height: 12),
-              AppTextField(label: 'Image URL', hint: 'Paste image link from Google Drive or web', controller: urlCtrl, prefixIcon: Icons.link_rounded),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10)),
-                child: Text('💡 Upload photo to Google Drive → Share → Copy link. Or use any direct image URL.',
-                  style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
+              AppTextField(label: 'Photo Title *', hint: 'e.g. Annual Day 2024', controller: titleCtrl, prefixIcon: Icons.title_rounded),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: isSaving ? null : () async {
+                  final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
+                  if (result != null && result.files.isNotEmpty) {
+                    setModal(() {
+                      pickedFilePath = result.files.first.path;
+                      pickedFileName = result.files.first.name;
+                    });
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  height: pickedFilePath != null ? 180 : 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1.5),
+                  ),
+                  child: pickedFilePath != null
+                    ? ClipRRect(borderRadius: BorderRadius.circular(12),
+                        child: Image.file(File(pickedFilePath!), fit: BoxFit.cover))
+                    : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        const Icon(Icons.add_photo_alternate_rounded, color: AppColors.accent, size: 40),
+                        const SizedBox(height: 8),
+                        Text('Tap to select photo', style: GoogleFonts.poppins(fontSize: 13, color: AppColors.accent, fontWeight: FontWeight.w600)),
+                        Text('JPG, PNG supported', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textHint)),
+                      ]),
+                ),
               ),
+              if (pickedFileName != null) ...[
+                const SizedBox(height: 6),
+                Text('✅ $pickedFileName', style: GoogleFonts.poppins(fontSize: 11, color: AppColors.success)),
+              ],
               const SizedBox(height: 12),
               AppTextField(label: 'Album Name', hint: 'e.g. Sports Day, Annual Day 2024', controller: albumCtrl, prefixIcon: Icons.photo_album_rounded),
               const SizedBox(height: 20),
-              SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                onPressed: isSaving ? null : () async {
-                  if (titleCtrl.text.trim().isEmpty || urlCtrl.text.trim().isEmpty) return;
-                  setModal(() => isSaving = true);
-                  await _service.addPhoto(GalleryPhoto(
-                    id: '', title: titleCtrl.text.trim(), description: '',
-                    imageUrl: urlCtrl.text.trim(),
-                    albumName: albumCtrl.text.trim().isEmpty ? 'General' : albumCtrl.text.trim(),
-                    addedBy: user.uid, addedByName: user.fullName, createdAt: DateTime.now(),
-                  ));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-                icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white),
-                label: Text('Add Photo', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              )),
+              isSaving
+                ? Column(children: [
+                    Text('Uploading... \${(uploadProgress * 100).toStringAsFixed(0)}%',
+                      style: GoogleFonts.poppins(fontSize: 13, color: AppColors.accent)),
+                    const SizedBox(height: 8),
+                  ])
+                : SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                    onPressed: () async {
+                      if (titleCtrl.text.trim().isEmpty || pickedFilePath == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please add a title and select a photo.')));
+                        return;
+                      }
+                      setModal(() => isSaving = true);
+                      try {
+                        final album = albumCtrl.text.trim().isEmpty ? 'General' : albumCtrl.text.trim();
+                        final fileName = '\${DateTime.now().millisecondsSinceEpoch}_\$pickedFileName';
+                        final storagePath = 'gallery/\$album/\$fileName';
+                        final ref = FirebaseStorage.instance.ref(storagePath);
+                        final task = ref.putFile(File(pickedFilePath!));
+                        task.snapshotEvents.listen((s) {
+                          setModal(() => uploadProgress = s.bytesTransferred / s.totalBytes);
+                        });
+                        final snap = await task;
+                        final url = await snap.ref.getDownloadURL();
+                        await _service.addPhoto(GalleryPhoto(
+                          id: '', title: titleCtrl.text.trim(), description: '',
+                          imageUrl: url, storagePath: storagePath,
+                          albumName: album,
+                          addedBy: user.uid, addedByName: user.fullName,
+                          createdAt: DateTime.now(),
+                        ));
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        setModal(() => isSaving = false);
+                        if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Upload failed: \$e')));
+                      }
+                    },
+                    icon: const Icon(Icons.upload_rounded, color: Colors.white),
+                    label: Text('Upload Photo', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  )),
             ]),
           )),
         ]),

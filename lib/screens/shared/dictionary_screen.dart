@@ -2,7 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../theme/app_theme.dart';
@@ -21,7 +21,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   String _toLang = 'Hindi';
 
   // ── Uses same .env key as AI chatbot — never hardcoded ──
-  String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
+  String _apiKey = '';
 
   // Models to try in order
   final List<String> _models = [
@@ -52,6 +52,28 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadApiKey();
+  }
+
+  Future<void> _loadApiKey() async {
+    try {
+      final rc = FirebaseRemoteConfig.instance;
+      await rc.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: Duration.zero,
+      ));
+      await rc.fetchAndActivate();
+      final key = rc.getString('gemini_api_key');
+      debugPrint('🔑 Gemini key loaded: \${key.isNotEmpty ? "YES (length: \${key.length})" : "EMPTY"}');
+      if (mounted) setState(() => _apiKey = key);
+    } catch (e) {
+      debugPrint('Remote config error: \$e');
+    }
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
@@ -59,6 +81,16 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
 
   Future<void> _lookup(String word) async {
     if (word.trim().isEmpty) return;
+    if (_apiKey.isEmpty) {
+      await _loadApiKey();
+    }
+    if (_apiKey.isEmpty) {
+      setState(() {
+        _result = {'error': 'API key not loaded yet. Please try again.'};
+        _loading = false;
+      });
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() { _loading = true; _result = null; });
 

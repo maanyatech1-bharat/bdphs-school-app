@@ -1051,16 +1051,19 @@ class _ViewResultsTabState extends State<_ViewResultsTab> {
       void Function(String?) fn) =>
       DropdownButtonFormField<String>(
         value: value,
+        isExpanded: true,
         decoration: InputDecoration(
           labelText: label, isDense: true,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         ),
-        style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textPrimary),
+        style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textPrimary),
         items: items.map((i) => DropdownMenuItem(
             value: i,
-            child: Text(i, style: GoogleFonts.poppins(fontSize: 13)))).toList(),
+            child: Text(i,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(fontSize: 12)))).toList(),
         onChanged: fn,
       );
 }

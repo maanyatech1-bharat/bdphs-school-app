@@ -1,5 +1,6 @@
 // lib/services/extended_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 // ─── FEE MODELS ───────────────────────────────────────────────────────────────
 class FeeStructure {
@@ -193,21 +194,25 @@ class ComplaintModel {
 // ─── GALLERY PHOTO ────────────────────────────────────────────────────────────
 class GalleryPhoto {
   final String id, title, description, imageUrl, albumName, addedBy, addedByName;
+  final String? storagePath;
   final DateTime createdAt;
 
   GalleryPhoto({required this.id, required this.title, required this.description,
     required this.imageUrl, required this.albumName,
-    required this.addedBy, required this.addedByName, required this.createdAt});
+    required this.addedBy, required this.addedByName,
+    this.storagePath, required this.createdAt});
 
   factory GalleryPhoto.fromMap(Map<String, dynamic> m, String id) => GalleryPhoto(
     id: id, title: m['title'] ?? '', description: m['description'] ?? '',
     imageUrl: m['imageUrl'] ?? '', albumName: m['albumName'] ?? '',
     addedBy: m['addedBy'] ?? '', addedByName: m['addedByName'] ?? '',
+    storagePath: m['storagePath'],
     createdAt: (m['createdAt'] as dynamic)?.toDate() ?? DateTime.now());
 
   Map<String, dynamic> toMap() => {'title': title, 'description': description,
     'imageUrl': imageUrl, 'albumName': albumName, 'addedBy': addedBy,
-    'addedByName': addedByName, 'createdAt': createdAt};
+    'addedByName': addedByName, 'storagePath': storagePath,
+    'createdAt': createdAt};
 }
 
 // ─── LEAVE BALANCE ────────────────────────────────────────────────────────────
@@ -434,8 +439,14 @@ class ExtendedService {
   Future<bool> addPhoto(GalleryPhoto p) async {
     try { await _gallery.add(p.toMap()); return true; } catch (_) { return false; }
   }
-  Future<bool> deletePhoto(String id) async {
-    try { await _gallery.doc(id).delete(); return true; } catch (_) { return false; }
+  Future<bool> deletePhoto(String id, {String? storagePath}) async {
+    try {
+      if (storagePath != null && storagePath.isNotEmpty) {
+        try { await FirebaseStorage.instance.ref(storagePath).delete(); } catch (_) {}
+      }
+      await _gallery.doc(id).delete();
+      return true;
+    } catch (_) { return false; }
   }
   Stream<List<GalleryPhoto>> getGalleryByAlbum(String album) =>
     _gallery.where('albumName', isEqualTo: album).snapshots()

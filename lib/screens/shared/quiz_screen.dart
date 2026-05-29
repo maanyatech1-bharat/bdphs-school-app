@@ -656,43 +656,47 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _subject,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Subject',
-                        labelStyle: GoogleFonts.poppins(fontSize: 13),
+                        labelStyle: GoogleFonts.poppins(fontSize: 12),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.subject_rounded, size: 20),
+                        prefixIcon: const Icon(Icons.subject_rounded, size: 18),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 14),
+                            horizontal: 8, vertical: 14),
                       ),
                       items: _subjects
                           .map((s) => DropdownMenuItem(
                               value: s,
                               child: Text(s,
-                                  style: GoogleFonts.poppins(fontSize: 13))))
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(fontSize: 12))))
                           .toList(),
                       onChanged: (v) => setState(() => _subject = v!),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedClass,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Class',
-                        labelStyle: GoogleFonts.poppins(fontSize: 13),
+                        labelStyle: GoogleFonts.poppins(fontSize: 12),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
                         prefixIcon:
-                            const Icon(Icons.class_rounded, size: 20),
+                            const Icon(Icons.class_rounded, size: 18),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 14),
+                            horizontal: 8, vertical: 14),
                       ),
                       items: _classes
                           .map((c) => DropdownMenuItem(
                               value: c,
                               child: Text(c,
-                                  style: GoogleFonts.poppins(fontSize: 13))))
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(fontSize: 12))))
                           .toList(),
                       onChanged: (v) =>
                           setState(() => _selectedClass = v!),

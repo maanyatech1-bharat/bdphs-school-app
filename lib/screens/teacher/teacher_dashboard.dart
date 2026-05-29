@@ -1,5 +1,6 @@
 // lib/screens/teacher/teacher_dashboard.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_provider.dart';
@@ -236,7 +237,7 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, const GalleryScreen())),
                   _card(Icons.play_circle_rounded, 'Videos',
                       const Color(0xFFDC2626),
-                      () => _go(context, const VideosScreen())),
+                      () => _go(context, VideoScreen(user: user!))),
                   // ✅ FIX: Quiz → QuizListScreen
                   _card(Icons.quiz_rounded, 'Quiz',
                       const Color(0xFFD97706),
@@ -284,6 +285,12 @@ class _HomeTab extends StatelessWidget {
                   _card(Icons.translate_rounded, 'Dictionary',
                       const Color(0xFF2563EB),
                       () => _go(context, const DictionaryScreen())),
+                  _card(Icons.language_rounded, 'Our Website',
+                      const Color(0xFF6366F1),
+                      () => launchUrl(Uri.parse('https://bdphs.in'), mode: LaunchMode.externalApplication)),
+                  _card(Icons.payment_rounded, 'Pay Fees',
+                      const Color(0xFF10B981),
+                      () => launchUrl(Uri.parse('https://bdphs.in/fees.php'), mode: LaunchMode.externalApplication)),
                 ]),
                 const SizedBox(height: 30),
               ]),

@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../theme/app_theme.dart';
@@ -105,7 +105,17 @@ class _QuizApiService {
     'gemini-1.5-flash',
   ];
 
-  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
+  static String _cachedKey = '';
+
+  static Future<void> loadKey() async {
+    try {
+      final rc = FirebaseRemoteConfig.instance;
+      await rc.fetchAndActivate();
+      _cachedKey = rc.getString('gemini_api_key');
+    } catch (_) {}
+  }
+
+  static String get _apiKey => _cachedKey;
 
   static Future<List<_Question>> fetchDailyQuestions({
     required String category,
@@ -284,6 +294,7 @@ class _BharatKoJanoScreenState extends State<BharatKoJanoScreen>
       _loadingMsg = _hindi ? 'AI प्रश्न तैयार कर रहा है…' : 'AI is generating questions…';
     });
 
+    await _QuizApiService.loadKey();
     List<_Question> questions = await _QuizApiService.fetchDailyQuestions(
       category: _selectedCategory, dateSeed: _dateSeed, count: _questionCount,
     );

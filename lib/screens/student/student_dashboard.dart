@@ -1,5 +1,6 @@
 // lib/screens/student/student_dashboard.dart
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -272,7 +273,7 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, const QuizListScreen())),
                   _card(Icons.play_circle_rounded, 'Videos',
                       const Color(0xFFEF4444),
-                      () => _go(context, const VideosScreen())),
+                      () => _go(context, VideoScreen(user: user!))),
                   _card(Icons.smart_toy_rounded, 'AI Tutor',
                       const Color(0xFF7C3AED),
                       () => _go(context, AiChatbotScreen())),
@@ -333,6 +334,18 @@ class _HomeTab extends StatelessWidget {
                   _card(Icons.emergency_rounded, 'Emergency',
                       const Color(0xFFDC2626),
                       () => _go(context, const EmergencyContactsScreen())),
+                  _card(Icons.language_rounded, 'Our Website',
+                      const Color(0xFF6366F1),
+                      () => launchUrl(Uri.parse('https://bdphs.in'), mode: LaunchMode.externalApplication)),
+                  _card(Icons.payment_rounded, 'Pay Fees',
+                      const Color(0xFF10B981),
+                      () => launchUrl(Uri.parse('https://bdphs.in/fees.php'), mode: LaunchMode.externalApplication)),
+                  _card(Icons.language_rounded, 'Our Website',
+                      const Color(0xFF0EA5E9),
+                      () => launchUrl(Uri.parse('https://bdphs.in'), mode: LaunchMode.externalApplication)),
+                  _card(Icons.payment_rounded, 'Pay Fees',
+                      const Color(0xFF10B981),
+                      () => launchUrl(Uri.parse('https://bdphs.in/fees.php'), mode: LaunchMode.externalApplication)),
                 ]),
                 const SizedBox(height: 30),
               ]),
