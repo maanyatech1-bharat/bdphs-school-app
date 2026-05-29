@@ -57,7 +57,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
       const StudentAttendanceScreen(),
       StudentProgressScreen(
           studentId: user?.uid ?? '',
-          studentName: user?.fullName ?? 'Student'),
+          studentName: user?.fullName ?? 'Student',
+          className: (user is StudentModel) ? (user as StudentModel).className : ''),
       _ProfileTab(user: user),
     ];
 
@@ -282,9 +283,6 @@ class _HomeTab extends StatelessWidget {
                   _card(Icons.auto_stories_rounded, 'Study Notes',
                       const Color(0xFF0891B2),
                       () => _go(context, StudyNotesScreen())),
-                  _card(Icons.library_books_rounded, 'Study Material',
-                      const Color(0xFF059669),
-                      () => _go(context, const StudyNotesScreen())),
                 ]),
                 const SizedBox(height: 20),
 
@@ -336,12 +334,6 @@ class _HomeTab extends StatelessWidget {
                       () => _go(context, const EmergencyContactsScreen())),
                   _card(Icons.language_rounded, 'Our Website',
                       const Color(0xFF6366F1),
-                      () => launchUrl(Uri.parse('https://bdphs.in'), mode: LaunchMode.externalApplication)),
-                  _card(Icons.payment_rounded, 'Pay Fees',
-                      const Color(0xFF10B981),
-                      () => launchUrl(Uri.parse('https://bdphs.in/fees.php'), mode: LaunchMode.externalApplication)),
-                  _card(Icons.language_rounded, 'Our Website',
-                      const Color(0xFF0EA5E9),
                       () => launchUrl(Uri.parse('https://bdphs.in'), mode: LaunchMode.externalApplication)),
                   _card(Icons.payment_rounded, 'Pay Fees',
                       const Color(0xFF10B981),

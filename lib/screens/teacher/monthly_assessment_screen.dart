@@ -247,10 +247,48 @@ class _AddAssessmentTabState extends State<_AddAssessmentTab> {
     }
   }
 
+  Future<int> _getDaysPresent(String studentId) async {
+    try {
+      final now = DateTime.now();
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthEnd = DateTime(now.year, now.month + 1, 0);
+      final snap = await FirebaseFirestore.instance
+          .collection('attendance')
+          .where('studentId', isEqualTo: studentId)
+          .where('className', isEqualTo: _selectedClass)
+          .get();
+      return snap.docs.where((d) {
+        final date = (d.data()['date'] as dynamic)?.toDate() as DateTime?;
+        if (date == null) return false;
+        return date.isAfter(monthStart.subtract(const Duration(days: 1))) &&
+               date.isBefore(monthEnd.add(const Duration(days: 1))) &&
+               (d.data()['isPresent'] == true);
+      }).length;
+    } catch (_) { return 0; }
+  }
+
+  Future<int> _getTotalDays() async {
+    try {
+      final now = DateTime.now();
+      final monthStart = DateTime(now.year, now.month, 1);
+      final monthEnd = DateTime(now.year, now.month + 1, 0);
+      final snap = await FirebaseFirestore.instance
+          .collection('attendance')
+          .where('className', isEqualTo: _selectedClass)
+          .get();
+      final dates = snap.docs.map((d) {
+        return (d.data()['date'] as dynamic)?.toDate() as DateTime?;
+      }).where((d) => d != null &&
+          d!.isAfter(monthStart.subtract(const Duration(days: 1))) &&
+          d.isBefore(monthEnd.add(const Duration(days: 1)))).toSet();
+      return dates.length;
+    } catch (_) { return 0; }
+  }
+
   Future<void> _saveAll() async {
     setState(() => _saving = true);
     try {
-      final batch = FirebaseFirestore.instance.batch();
+      // Using individual sets to support async attendance lookup
       for (final s in _students) {
         final uid = s['uid'] as String;
         final a = _assessments[uid]!;
@@ -263,7 +301,7 @@ class _AddAssessmentTabState extends State<_AddAssessmentTab> {
             .replaceAll(' ', '_');
         final ref = FirebaseFirestore.instance
             .collection('monthly_assessments').doc(docId);
-        batch.set(ref, {
+        await ref.set({
           'studentId': uid,
           'studentName': s['name'],
           'rollNumber': s['roll'],
@@ -295,10 +333,15 @@ class _AddAssessmentTabState extends State<_AddAssessmentTab> {
           'grade': grade,
           'addedBy': widget.user?.uid ?? '',
           'addedByName': widget.user?.fullName ?? '',
+          'assessedBy': widget.user?.uid ?? '',
+          'assessedByName': widget.user?.fullName ?? '',
+          'year': DateTime.now().year,
+          'daysPresent': await _getDaysPresent(uid),
+          'totalDays': await _getTotalDays(),
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
-      await batch.commit();
+      // All sets completed
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('✅ Assessments saved for all students!'),
