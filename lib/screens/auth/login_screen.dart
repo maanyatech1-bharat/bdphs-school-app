@@ -186,6 +186,12 @@ class _LoginScreenState extends State<LoginScreen>
                         }
                       } catch (e) {
                         setS(() => sending = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red.shade700,
+                          ));
+                        }
                       }
                     },
               style: ElevatedButton.styleFrom(

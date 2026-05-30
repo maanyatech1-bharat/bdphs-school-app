@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ NEW
 import 'package:myapp/firebase_options.dart';
@@ -24,7 +25,27 @@ void main() async {
   await dotenv.load(fileName: '.env'); // ✅ Load API keys from .env
   await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform);
+  // Initialize Remote Config once at startup
+  try {
+    final rc = FirebaseRemoteConfig.instance;
+    await rc.setConfigSettings(RemoteConfigSettings(
+      fetchTimeout: const Duration(seconds: 10),
+      minimumFetchInterval: const Duration(hours: 1),
+    ));
+    await rc.fetchAndActivate();
+  } catch (_) {}
+
   await FCMService().initialize();
+  // Initialize Remote Config once at startup
+  try {
+    final rc = FirebaseRemoteConfig.instance;
+    await rc.setConfigSettings(RemoteConfigSettings(
+      fetchTimeout: const Duration(seconds: 10),
+      minimumFetchInterval: const Duration(hours: 1),
+    ));
+    await rc.fetchAndActivate();
+  } catch (_) {}
+
   await FCMService().initialize();
   FlutterNativeSplash.remove();
   runApp(const BDPHSApp());
