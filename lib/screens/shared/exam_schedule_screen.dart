@@ -214,8 +214,10 @@ class _ViewTabState extends State<_ViewTab> {
                     final color   = _subjectColor(subject);
                     final date    = (d['examDate'] as Timestamp?)?.toDate();
                     final cls     = d['className'] as String? ?? '';
-                    final time    = d['examTime'] as String? ?? '';
-                    final duration = d['duration'] as String? ?? '';
+                    final rawTime = d['examTime'] as String? ?? '';
+                    final time = rawTime.replaceAll('"', ':').replaceAll("'", ':');
+                    final rawDuration = d['duration'] as String? ?? '';
+                    final duration = rawDuration.replaceAll('"', ':').replaceAll("'", ':');
                     final canDelete = widget.user?.role == UserRole.admin ||
                         widget.user?.role == UserRole.teacher;
 
@@ -460,6 +462,7 @@ class _AddTabState extends State<_AddTab> {
               _lbl('Exam Time'),
               TextField(
                 controller: _timeCtrl,
+                keyboardType: TextInputType.datetime,
                 style: GoogleFonts.poppins(fontSize: 14),
                 decoration: _dec('e.g. 10:00 AM'),
               ),
