@@ -70,7 +70,7 @@ class _MarkTab extends StatefulWidget {
 
 class _MarkTabState extends State<_MarkTab> {
   List<Map<String, dynamic>> _teachers = [];
-  Map<String, bool> _attendance = {};   // uid → present/absent
+  Map<String, String> _attendance = {};   // uid → present/absent/leave
   bool _loading = true;
   bool _saving = false;
   bool _alreadySaved = false;
@@ -181,7 +181,7 @@ class _MarkTabState extends State<_MarkTab> {
           .limit(1)
           .get();
 
-      Map<String, bool> saved = {};
+      Map<String, String> saved = {};
       bool alreadySaved = false;
 
       if (existing.docs.isNotEmpty) {
@@ -192,12 +192,12 @@ class _MarkTabState extends State<_MarkTab> {
             .get();
         for (final d in existingFull.docs) {
           saved[d.data()['teacherId'] as String] =
-              d.data()['isPresent'] as bool? ?? true;
+              (d.data()['status'] as String?) ?? (d.data()['isPresent'] == true ? 'present' : 'absent');
         }
       } else {
         // Default all to present
         for (final t in teachers) {
-          saved[t['uid'] as String] = true;
+          saved[t['uid'] as String] = 'present';
         }
       }
 
@@ -235,7 +235,8 @@ class _MarkTabState extends State<_MarkTab> {
           'teacherId': uid,
           'teacherName': t['name'],
           'subject': t['subject'],
-          'isPresent': _attendance[uid] ?? true,
+          'isPresent': (_attendance[uid] ?? 'present') == 'present',
+            'status': _attendance[uid] ?? 'present',
           'date': Timestamp.fromDate(_today),
           'markedAt': FieldValue.serverTimestamp(),
         });
@@ -306,10 +307,10 @@ class _MarkTabState extends State<_MarkTab> {
     ));
   }
 
-  void _toggleAll(bool present) {
+  void _toggleAll(String status) {
     setState(() {
       for (final t in _teachers) {
-        _attendance[t['uid'] as String] = present;
+        _attendance[t['uid'] as String] = status;
       }
     });
   }
@@ -348,8 +349,9 @@ class _MarkTabState extends State<_MarkTab> {
       ));
     }
 
-    final presentCount = _attendance.values.where((v) => v).length;
-    final absentCount = _attendance.values.where((v) => !v).length;
+    final presentCount = _attendance.values.where((v) => v == 'present').length;
+    final leaveCount = _attendance.values.where((v) => v == 'leave').length;
+    final absentCount = _attendance.values.where((v) => v == 'absent').length;
 
     return Column(children: [
       // ── Header ─────────────────────────────────────────────────────
@@ -404,16 +406,18 @@ class _MarkTabState extends State<_MarkTab> {
             _summaryChip('${_teachers.length}', 'Total',
                 const Color(0xFFD97706)),
             const SizedBox(width: 8),
-            _summaryChip('$presentCount', 'Present', AppColors.success),
+            _summaryChip(presentCount.toString(), 'Present', AppColors.success),
             const SizedBox(width: 8),
-            _summaryChip('$absentCount', 'Absent', AppColors.error),
+            _summaryChip(absentCount.toString(), 'Absent', AppColors.error),
+            const SizedBox(width: 8),
+            _summaryChip(leaveCount.toString(), 'Leave', Colors.orange),
           ]),
           const SizedBox(height: 12),
 
           // Quick toggle buttons
           Row(children: [
             Expanded(child: OutlinedButton.icon(
-              onPressed: () => _toggleAll(true),
+              onPressed: () => _toggleAll('present'),
               icon: const Icon(Icons.check_circle_outline_rounded,
                   size: 16, color: AppColors.success),
               label: Text('All Present',
@@ -429,7 +433,7 @@ class _MarkTabState extends State<_MarkTab> {
             )),
             const SizedBox(width: 8),
             Expanded(child: OutlinedButton.icon(
-              onPressed: () => _toggleAll(false),
+              onPressed: () => _toggleAll('absent'),
               icon: const Icon(Icons.cancel_outlined,
                   size: 16, color: AppColors.error),
               label: Text('All Absent',
@@ -455,7 +459,9 @@ class _MarkTabState extends State<_MarkTab> {
         itemBuilder: (_, i) {
           final t = _teachers[i];
           final uid = t['uid'] as String;
-          final isPresent = _attendance[uid] ?? true;
+          final status = _attendance[uid] ?? 'present';
+            final isPresent = status == 'present';
+            final isLeave = status == 'leave';
           final name = t['name'] as String;
           final subject = t['subject'] as String;
 
@@ -466,7 +472,7 @@ class _MarkTabState extends State<_MarkTab> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border(left: BorderSide(
-                color: isPresent ? AppColors.success : AppColors.error,
+                color: isPresent ? AppColors.success : isLeave ? Colors.orange : AppColors.error,
                 width: 4,
               )),
               boxShadow: [BoxShadow(
@@ -477,14 +483,12 @@ class _MarkTabState extends State<_MarkTab> {
               // Avatar
               CircleAvatar(
                 radius: 22,
-                backgroundColor: isPresent
-                    ? AppColors.success.withValues(alpha: 0.12)
-                    : AppColors.error.withValues(alpha: 0.12),
+                backgroundColor: isPresent ? AppColors.success.withValues(alpha: 0.1) : AppColors.error.withValues(alpha: 0.1),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : 'T',
                   style: GoogleFonts.poppins(
                       fontSize: 16, fontWeight: FontWeight.w800,
-                      color: isPresent ? AppColors.success : AppColors.error),
+                      color: isPresent ? AppColors.success : isLeave ? Colors.orange : AppColors.error),
                 ),
               ),
               const SizedBox(width: 12),
@@ -503,20 +507,20 @@ class _MarkTabState extends State<_MarkTab> {
 
               // P / A toggle
               GestureDetector(
-                onTap: () => setState(() =>
-                    _attendance[uid] = !(_attendance[uid] ?? true)),
+                onTap: () => setState(() {
+                  final cur = _attendance[uid] ?? 'present';
+                  _attendance[uid] = cur == 'present' ? 'absent' : cur == 'absent' ? 'leave' : 'present';
+                }),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 18, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isPresent
-                        ? AppColors.success
-                        : AppColors.error,
+                    color: isPresent ? AppColors.success : isLeave ? Colors.orange : AppColors.error,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    isPresent ? 'P' : 'A',
+                    isPresent ? 'P' : isLeave ? 'L' : 'A',
                     style: GoogleFonts.poppins(
                         fontSize: 14, fontWeight: FontWeight.w900,
                         color: Colors.white),
@@ -708,7 +712,9 @@ class _ViewTabState extends State<_ViewTab> {
               itemCount: records.length,
               itemBuilder: (_, i) {
                 final r = records[i];
-                final isPresent = r['isPresent'] == true;
+                final status = (r['status'] as String?) ?? (r['isPresent'] == true ? 'present' : 'absent');
+                final isPresent = status == 'present';
+                final isLeave = status == 'leave';
                 final name = r['teacherName'] as String? ?? '—';
                 final subject = r['subject'] as String? ?? '';
 
@@ -730,15 +736,12 @@ class _ViewTabState extends State<_ViewTab> {
                   child: Row(children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: isPresent
-                          ? AppColors.success.withValues(alpha: 0.12)
-                          : AppColors.error.withValues(alpha: 0.12),
+                      backgroundColor: isPresent ? AppColors.success.withValues(alpha: 0.1) : AppColors.error.withValues(alpha: 0.1),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'T',
                         style: GoogleFonts.poppins(
                             fontSize: 15, fontWeight: FontWeight.w800,
-                            color: isPresent
-                                ? AppColors.success : AppColors.error),
+                            color: isPresent ? AppColors.success : AppColors.error),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -761,10 +764,9 @@ class _ViewTabState extends State<_ViewTab> {
                             : AppColors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: isPresent
-                                ? AppColors.success : AppColors.error),
+                            color: isPresent ? AppColors.success : AppColors.error),
                       ),
-                      child: Text(isPresent ? 'Present' : 'Absent',
+                      child: Text(isPresent ? 'Present' : isLeave ? 'Leave' : 'Absent',
                           style: GoogleFonts.poppins(
                               fontSize: 12, fontWeight: FontWeight.w700,
                               color: isPresent
