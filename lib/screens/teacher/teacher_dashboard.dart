@@ -21,6 +21,7 @@ import '../shared/fee_screen.dart';
 import '../shared/ai_chatbot_screen.dart';
 import '../shared/dictionary_screen.dart';
 import '../shared/profile_edit_screen.dart';
+import 'teacher_id_card_screen.dart';
 import '../shared/homework_screen.dart';          // ✅ Fixed
 import '../shared/study_notes_screen.dart';       // ✅ Fixed
 import '../shared/quiz_screen.dart';              // ✅ Fixed — QuizListScreen
@@ -238,6 +239,9 @@ class _HomeTab extends StatelessWidget {
                   _card(Icons.play_circle_rounded, 'Videos',
                       const Color(0xFFDC2626),
                       () => _go(context, VideoScreen(user: user!))),
+                  _card(Icons.badge_rounded, 'My ID\nCard',
+                      AppColors.teacherColor,
+                      () => _go(context, const TeacherIdCardScreen())),
                   // ✅ FIX: Quiz → QuizListScreen
                   _card(Icons.quiz_rounded, 'Quiz',
                       const Color(0xFFD97706),

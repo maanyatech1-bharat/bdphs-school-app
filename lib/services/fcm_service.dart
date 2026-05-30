@@ -55,8 +55,8 @@ class FCMService {
   }
 
   Future<void> subscribeUserTopics({required String role, String? className}) async {
-    await _fcm.subscribeToTopic('all');
-    await _fcm.subscribeToTopic(role);
+    try { await _fcm.subscribeToTopic('all'); } catch (_) {}
+    try { await _fcm.subscribeToTopic(role); } catch (_) {}
     if (role == 'student' && className != null) {
       final topic = className.replaceAll(' ', '_').toLowerCase();
       await _fcm.subscribeToTopic('class_\$topic');
