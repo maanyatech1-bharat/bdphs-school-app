@@ -221,6 +221,7 @@ class _StudentCard extends StatelessWidget {
     final attendance = student.attendancePercentage ?? 0.0;
 
     return GestureDetector(
+      onLongPress: () => _StudentActionsSheet.show(context, student),
       // ✅ Fixed: tap now opens full student profile
       onTap: () => Navigator.push(
         context,
@@ -307,4 +308,95 @@ class _StudentCard extends StatelessWidget {
     child: Text(label, style: GoogleFonts.poppins(
         fontSize: 10, fontWeight: FontWeight.w600, color: color)),
   );
+}
+
+class _StudentActionsSheet {
+  static Future<void> show(BuildContext context, StudentModel student) async {
+    final isDeactivated = student.approvalStatus == ApprovalStatus.rejected;
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text(student.fullName, style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(student.className, style: GoogleFonts.poppins(
+              color: AppColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: Icon(
+              isDeactivated ? Icons.check_circle_rounded : Icons.block_rounded,
+              color: isDeactivated ? AppColors.success : Colors.orange),
+            title: Text(isDeactivated ? 'Reactivate Student' : 'Deactivate Student',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            subtitle: Text(isDeactivated
+                ? 'Student can login again'
+                : 'Student will be blocked from login',
+                style: GoogleFonts.poppins(fontSize: 12)),
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                await FirebaseFirestore.instance
+                    .collection('students').doc(student.uid)
+                    .update({'approvalStatus': isDeactivated ? 'approved' : 'rejected'});
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(isDeactivated ? '✅ Student reactivated' : '⚠️ Student deactivated'),
+                  backgroundColor: isDeactivated ? AppColors.success : Colors.orange));
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Error: $e'), backgroundColor: AppColors.error));
+              }
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.delete_forever_rounded, color: AppColors.error),
+            title: Text('Delete Permanently', style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600, color: AppColors.error)),
+            subtitle: Text('Remove all data. Cannot be undone.',
+                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.error)),
+            onTap: () async {
+              Navigator.pop(context);
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Text('Delete Permanently', style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700, color: AppColors.error)),
+                  content: Text('Delete ${student.fullName}? Cannot be undone.',
+                      style: GoogleFonts.poppins()),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel')),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm != true) return;
+              try {
+                await FirebaseFirestore.instance.collection('students').doc(student.uid).delete();
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('✅ Student deleted'),
+                  backgroundColor: AppColors.success));
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Error: $e'), backgroundColor: AppColors.error));
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
 }
