@@ -18,11 +18,13 @@ class NoticesScreen extends StatefulWidget {
 class _NoticesScreenState extends State<NoticesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late bool _isStudent;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: (context.read<AppAuthProvider>().currentUser?.role == UserRole.student) ? 2 : 3, vsync: this);
+    _isStudent = context.read<AppAuthProvider>().currentUser?.role == UserRole.student;
+    _tabController = TabController(length: _isStudent ? 2 : 3, vsync: this);
   }
 
   @override
@@ -78,7 +80,7 @@ class _NoticesScreenState extends State<NoticesScreen>
               tabs: [
                 const Tab(text: 'All'),
                 const Tab(text: 'Students'),
-                if (user?.role != UserRole.student) const Tab(text: 'Teachers'),
+                if (!_isStudent) const Tab(text: 'Teachers'),
               ],
             ),
           ),
@@ -88,7 +90,7 @@ class _NoticesScreenState extends State<NoticesScreen>
           children: [
             _NoticesList(audience: 'all', canManage: canPost),
             _NoticesList(audience: 'students', canManage: canPost),
-            if (user?.role != UserRole.student)
+            if (!_isStudent)
               _NoticesList(audience: 'teachers', canManage: canPost),
           ],
         ),
