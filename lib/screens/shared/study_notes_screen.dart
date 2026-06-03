@@ -76,9 +76,9 @@ const List<String> _kClasses = [
 ];
 
 const List<String> _kSubjects = [
-  'Mathematics', 'Science', 'English', 'Hindi', 'Social Studies',
-  'Computer Science', 'Sanskrit', 'Urdu', 'Physical Education',
-  'Art & Craft', 'Moral Science', 'General Knowledge',
+  'Maths', 'Science', 'English', 'Hindi', 'S.ST',
+  'Comp. Sci', 'Sanskrit', 'Urdu', 'Phy. Edu',
+  'Art & Craft', 'Moral Sci', 'G.K',
 ];
 
 const List<String> _kNoteTypes = [
@@ -298,18 +298,18 @@ class _SubjectGrid extends StatelessWidget {
   const _SubjectGrid({required this.color, required this.onSubjectTap});
 
   static const Map<String, IconData> _icons = {
-    'Mathematics': Icons.calculate_rounded,
+    'Maths': Icons.calculate_rounded,
     'Science': Icons.science_rounded,
     'English': Icons.translate_rounded,
     'Hindi': Icons.language_rounded,
-    'Social Studies': Icons.public_rounded,
-    'Computer Science': Icons.computer_rounded,
+    'S.ST': Icons.public_rounded,
+    'Comp. Sci': Icons.computer_rounded,
     'Sanskrit': Icons.auto_stories_rounded,
     'Urdu': Icons.text_fields_rounded,
-    'Physical Education': Icons.sports_soccer_rounded,
+    'Phy. Edu': Icons.sports_soccer_rounded,
     'Art & Craft': Icons.palette_rounded,
-    'Moral Science': Icons.psychology_rounded,
-    'General Knowledge': Icons.lightbulb_rounded,
+    'Moral Sci': Icons.psychology_rounded,
+    'G.K': Icons.lightbulb_rounded,
   };
 
   @override

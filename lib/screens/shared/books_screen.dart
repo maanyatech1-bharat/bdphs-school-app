@@ -91,9 +91,9 @@ const List<String> _kClasses = [
 ];
 
 const List<String> _kSubjects = [
-  'Mathematics', 'Science', 'English', 'Hindi', 'Social Studies',
-  'Computer Science', 'Sanskrit', 'Urdu', 'Physical Education',
-  'Art & Craft', 'Moral Science', 'General Knowledge',
+  'Maths', 'Science', 'English', 'Hindi', 'S.ST',
+  'Comp. Sci', 'Sanskrit', 'Urdu', 'Phy. Education',
+  'Art & Craft', 'Moral Sci.', 'Gen. Knowledge',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -314,18 +314,18 @@ class _SubjectGrid extends StatelessWidget {
   const _SubjectGrid({required this.onSubjectTap});
 
   static const Map<String, IconData> _icons = {
-    'Mathematics': Icons.calculate_rounded,
+    'Maths': Icons.calculate_rounded,
     'Science': Icons.science_rounded,
     'English': Icons.translate_rounded,
     'Hindi': Icons.language_rounded,
-    'Social Studies': Icons.public_rounded,
-    'Computer Science': Icons.computer_rounded,
+    'S.ST': Icons.public_rounded,
+    'Comp. Sci': Icons.computer_rounded,
     'Sanskrit': Icons.auto_stories_rounded,
     'Urdu': Icons.text_fields_rounded,
-    'Physical Education': Icons.sports_soccer_rounded,
+    'Phy. Education': Icons.sports_soccer_rounded,
     'Art & Craft': Icons.palette_rounded,
-    'Moral Science': Icons.psychology_rounded,
-    'General Knowledge': Icons.lightbulb_rounded,
+    'Moral Sci.': Icons.psychology_rounded,
+    'Gen. Knowledge': Icons.lightbulb_rounded,
   };
 
   @override
@@ -333,7 +333,7 @@ class _SubjectGrid extends StatelessWidget {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, childAspectRatio: 2.2,
+        crossAxisCount: 2, childAspectRatio: 3.5,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
         
@@ -354,24 +354,26 @@ class _SubjectGrid extends StatelessWidget {
                     offset: const Offset(0, 2)),
               ],
             ),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(_icons[sub] ?? Icons.book_rounded,
-                      color: Colors.white, size: 22),
+                      color: Colors.white, size: 20),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(sub,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary)),
                 ),
