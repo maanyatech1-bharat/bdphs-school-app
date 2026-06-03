@@ -23,13 +23,16 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
   int _present = 0;
   int _absent = 0;
   int _total = 0;
+  late StudentModel _student;
 
   @override
   void initState() {
     super.initState();
+    _student = widget.student;
     _tabs = TabController(length: 2, vsync: this);
     _loadAttendanceSummary();
   }
+
 
   @override
   void dispose() {
@@ -74,6 +77,13 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
             pinned: true,
             backgroundColor: AppColors.studentColor,
             foregroundColor: Colors.white,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit_rounded, color: Colors.white),
+                tooltip: 'Edit Class & Roll',
+                onPressed: () => _showEditDialog(context, widget.student),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -144,6 +154,72 @@ class _StudentProfileScreenState extends State<StudentProfileScreen>
       ),
     );
   }
+
+  void _showEditDialog(BuildContext context, StudentModel s) {
+    final classes = [
+      'Nursery', 'LKG', 'UKG',
+      'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+      'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+    ];
+    String? selectedClass = classes.contains(s.className) ? s.className : null;
+    final rollCtrl = TextEditingController(text: s.rollNumber);
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text('Edit Class & Roll', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedClass,
+                decoration: const InputDecoration(labelText: 'Class', border: OutlineInputBorder()),
+                items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (v) => setS(() => selectedClass = v),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: rollCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Roll Number', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                if (selectedClass == null) return;
+                final updateData = {
+                  'className': selectedClass,
+                  'rollNumber': rollCtrl.text.trim(),
+                };
+                // Update both collections
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(s.uid)
+                    .update(updateData);
+                await FirebaseFirestore.instance
+                    .collection('students')
+                    .doc(s.uid)
+                    .update(updateData);
+                Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Class & Roll updated!'), backgroundColor: Colors.green),
+                  );
+                  // Go back to list — StreamBuilder will auto-refresh
+                  if (context.mounted) Navigator.pop(context);
+                }
+              },
+              child: Text('Save', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Details Tab ───────────────────────────────────────────────────────────────
@@ -162,24 +238,24 @@ class _DetailsTab extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: s.approvalStatus == 'approved'
+              color: s.approvalStatus == ApprovalStatus.approved
                   ? AppColors.success.withValues(alpha: 0.1)
                   : AppColors.warning.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: s.approvalStatus == 'approved'
+                color: s.approvalStatus == ApprovalStatus.approved
                     ? AppColors.success
                     : AppColors.warning,
               ),
             ),
             child: Text(
-              s.approvalStatus == 'approved'
+              s.approvalStatus == ApprovalStatus.approved
                   ? '✅ Approved Student'
-                  : '⏳ ${s.approvalStatus}',
+                  : s.approvalStatus == ApprovalStatus.pending ? '⏳ Pending' : '❌ Rejected',
               style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: s.approvalStatus == 'approved'
+                  color: s.approvalStatus == ApprovalStatus.approved
                       ? AppColors.success
                       : AppColors.warning),
             ),
@@ -340,22 +416,19 @@ class _AttendanceTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF2563EB).withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.2)),
+            border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.2)),
           ),
           child: Row(children: [
-            const Icon(Icons.info_rounded,
-                color: Color(0xFF2563EB), size: 18),
+            const Icon(Icons.info_rounded, color: Color(0xFF2563EB), size: 18),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Minimum required attendance is 75%. '
-                'Student needs ${total == 0 ? '—' : '${(0.75 * total - present).ceil()} more'} '
-                'present days to reach 75%.',
-                style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    height: 1.5),
+                total == 0
+                    ? "No attendance recorded yet."
+                    : (0.75 * total - present).ceil() <= 0
+                        ? "Requirement met! Great attendance."
+                        : "Student needs ${(0.75 * total - present).ceil()} more present days to reach 75%.",
+                style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
               ),
             ),
           ]),

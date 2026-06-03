@@ -28,7 +28,6 @@ import '../shared/progress_screen.dart';
 import '../shared/syllabus_gallery_material.dart' hide StudyMaterialScreen;
 import '../shared/profile_edit_screen.dart'; // ✅ Profile edit
 import '../shared/study_notes_screen.dart';
-import '../teacher/enter_marks_screen.dart'; // ✅ Student views own results
 import '../shared/chat_screen.dart';          // ✅ Chat
 import '../shared/meeting_screen.dart';       // ✅ Meetings
 
@@ -238,10 +237,17 @@ class _HomeTab extends StatelessWidget {
                   _card(Icons.event_rounded, 'Exam Sheet',
                       const Color(0xFFDC2626),
                       () => _go(context, const ExamScheduleScreen())),
-                  // ✅ Results → EnterMarksScreen (student sees own results)
+                  // ✅ Results → StudentProgressScreen
                   _card(Icons.leaderboard_rounded, 'Results',
                       const Color(0xFF7C3AED),
-                      () => _go(context, const EnterMarksScreen())),
+                      () {
+                        final u = context.read<AppAuthProvider>().currentUser;
+                        _go(context, StudentProgressScreen(
+                          studentId: u?.uid ?? '',
+                          studentName: u?.fullName ?? 'Student',
+                          className: (u is StudentModel) ? (u as StudentModel).className : '',
+                        ));
+                      }),
                   _card(Icons.table_chart_rounded, 'Timetable',
                       const Color(0xFF0891B2),
                       () => _go(context, const TimetableScreen())),

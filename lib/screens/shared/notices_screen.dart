@@ -22,7 +22,7 @@ class _NoticesScreenState extends State<NoticesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: (context.read<AppAuthProvider>().currentUser?.role == UserRole.student) ? 2 : 3, vsync: this);
   }
 
   @override
@@ -75,10 +75,10 @@ class _NoticesScreenState extends State<NoticesScreen>
               unselectedLabelColor: Colors.white60,
               labelStyle: GoogleFonts.poppins(
                   fontSize: 13, fontWeight: FontWeight.w600),
-              tabs: const [
-                Tab(text: 'All'),
-                Tab(text: 'Students'),
-                Tab(text: 'Teachers'),
+              tabs: [
+                const Tab(text: 'All'),
+                const Tab(text: 'Students'),
+                if (user?.role != UserRole.student) const Tab(text: 'Teachers'),
               ],
             ),
           ),
@@ -88,7 +88,8 @@ class _NoticesScreenState extends State<NoticesScreen>
           children: [
             _NoticesList(audience: 'all', canManage: canPost),
             _NoticesList(audience: 'students', canManage: canPost),
-            _NoticesList(audience: 'teachers', canManage: canPost),
+            if (user?.role != UserRole.student)
+              _NoticesList(audience: 'teachers', canManage: canPost),
           ],
         ),
       ),

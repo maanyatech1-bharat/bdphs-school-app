@@ -333,10 +333,10 @@ class _SubjectGrid extends StatelessWidget {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+        crossAxisCount: 2, childAspectRatio: 2.2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.6,
+        
       ),
       itemCount: _kSubjects.length,
       itemBuilder: (_, i) {

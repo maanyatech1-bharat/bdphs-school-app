@@ -422,20 +422,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 _sectionHeader(
                     'Academic Details', Icons.school_rounded),
                 const SizedBox(height: 14),
-                _dropdownField(
+                // Class & Roll — read-only for student, editable only by admin
+                _readOnlyInfoTile(
                   label: 'Class',
-                  value: _selectedClass,
-                  items: _classes,
+                  value: _selectedClass ?? 'Not assigned',
                   icon: Icons.class_rounded,
-                  onChanged: (v) =>
-                      setState(() => _selectedClass = v),
                 ),
                 const SizedBox(height: 12),
-                _formField(
+                _readOnlyInfoTile(
                   label: 'Roll Number',
-                  controller: _rollNumberCtrl,
+                  value: _rollNumberCtrl.text.isEmpty ? 'Not assigned' : _rollNumberCtrl.text,
                   icon: Icons.numbers_rounded,
-                  keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 24),
                 _sectionHeader(
@@ -730,4 +727,31 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       ),
     );
   }
+
+  Widget _readOnlyInfoTile({required String label, required String value, required IconData icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.grey.shade500),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const Spacer(),
+          Icon(Icons.lock_outline_rounded, size: 16, color: Colors.grey.shade400),
+        ],
+      ),
+    );
+  }
+
 }
