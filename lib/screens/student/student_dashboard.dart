@@ -277,7 +277,11 @@ class _HomeTab extends StatelessWidget {
                 const SizedBox(height: 12),
                 _grid([
                   _card(Icons.quiz_rounded, 'Quiz', const Color(0xFFD97706),
-                      () => _go(context, const QuizListScreen())),
+                      () {
+                        final u = context.read<AppAuthProvider>().currentUser;
+                        final cls = (u is StudentModel) ? u.className : 'All';
+                        _go(context, QuizListScreen(className: cls));
+                      }),
                   _card(Icons.play_circle_rounded, 'Videos',
                       const Color(0xFFEF4444),
                       () => _go(context, VideoScreen(user: user!))),

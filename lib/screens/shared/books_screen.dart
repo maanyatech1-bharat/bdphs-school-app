@@ -90,11 +90,8 @@ const List<String> _kClasses = [
   'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
 ];
 
-const List<String> _kSubjects = [
-  'Maths', 'Science', 'English', 'Hindi', 'S.ST',
-  'Comp. Sci', 'Sanskrit', 'Urdu', 'Phy. Education',
-  'Art & Craft', 'Moral Sci.', 'Gen. Knowledge',
-];
+const List<String> _kSubjects = ['English', 'Hindi', 'Maths', 'Science', 'S.ST', 'Computer',
+  'G.K', 'EVS', 'Moral Sci', 'Mental Maths', 'Art & Craft', 'Drawing', 'Phy. Edu'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN SCREEN
@@ -314,18 +311,19 @@ class _SubjectGrid extends StatelessWidget {
   const _SubjectGrid({required this.onSubjectTap});
 
   static const Map<String, IconData> _icons = {
-    'Maths': Icons.calculate_rounded,
-    'Science': Icons.science_rounded,
     'English': Icons.translate_rounded,
     'Hindi': Icons.language_rounded,
+    'Maths': Icons.calculate_rounded,
+    'Science': Icons.science_rounded,
     'S.ST': Icons.public_rounded,
-    'Comp. Sci': Icons.computer_rounded,
-    'Sanskrit': Icons.auto_stories_rounded,
-    'Urdu': Icons.text_fields_rounded,
-    'Phy. Education': Icons.sports_soccer_rounded,
+    'Computer': Icons.computer_rounded,
+    'G.K': Icons.lightbulb_rounded,
+    'EVS': Icons.eco_rounded,
+    'Moral Sci': Icons.psychology_rounded,
+    'Mental Maths': Icons.functions_rounded,
     'Art & Craft': Icons.palette_rounded,
-    'Moral Sci.': Icons.psychology_rounded,
-    'Gen. Knowledge': Icons.lightbulb_rounded,
+    'Drawing': Icons.draw_rounded,
+    'Phy. Edu': Icons.sports_soccer_rounded,
   };
 
   @override

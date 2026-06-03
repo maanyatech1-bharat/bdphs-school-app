@@ -23,16 +23,9 @@ class QuizListScreen extends StatefulWidget {
 class _QuizListScreenState extends State<QuizListScreen> {
   final _service = SchoolService();
 
-  final List<String> _classes = [
-    'All', 'Nursery', 'LKG', 'UKG',
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-  ];
+  final List<String> _classes = ['All', 'Nursery', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
 
-  final List<String> _subjects = [
-    'All', 'Hindi', 'English', 'Mathematics', 'Science',
-    'Social Science', 'Sanskrit', 'Computer', 'Drawing',
-  ];
+  final List<String> _subjects = ['All', 'English', 'Hindi', 'Maths', 'Science', 'S.ST', 'Computer', 'G.K', 'EVS', 'Moral Sci', 'Mental Maths', 'Art & Craft', 'Drawing', 'Phy. Edu'];
 
   late String _selectedClass;
   String _selectedSubject = 'All';
@@ -75,15 +68,17 @@ class _QuizListScreenState extends State<QuizListScreen> {
                     onChanged: (v) => setState(() => _selectedSubject = v!),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _FilterDropdown(
-                    label: 'Class',
-                    value: _selectedClass,
-                    items: _classes,
-                    onChanged: (v) => setState(() => _selectedClass = v!),
+                if (isTeacherOrAdmin) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _FilterDropdown(
+                      label: 'Class',
+                      value: _selectedClass,
+                      items: _classes,
+                      onChanged: (v) => setState(() => _selectedClass = v!),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -506,10 +501,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   final List<_QuestionEntry> _questions = [];
   bool _saving = false;
 
-  final List<String> _subjects = [
-    'Hindi', 'English', 'Mathematics', 'Science',
-    'Social Science', 'Sanskrit', 'Computer', 'Drawing',
-  ];
+  final List<String> _subjects = ['English', 'Hindi', 'Maths', 'Science', 'S.ST', 'Computer', 'G.K', 'EVS', 'Moral Sci', 'Mental Maths', 'Art & Craft', 'Drawing', 'Phy. Edu'];
   final List<String> _classes = [
     'Nursery', 'LKG', 'UKG',
     'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
