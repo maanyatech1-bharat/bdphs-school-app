@@ -21,7 +21,15 @@ class _TeacherIdCardScreenState extends State<TeacherIdCardScreen> {
   bool _generating = false;
 
   String _buildQrData(TeacherModel t) =>
-      'BDPHS-TEACHER|ID:${t.employeeId}|NAME:${t.fullName}|SUBJECT:${t.subject}|UID:${t.uid}';
+      [
+      'BLOOMING DALE PUBLIC HIGH SCHOOL',
+      'TEACHER IDENTITY CARD',
+      'Name     : \${t.fullName}',
+      'Emp ID   : \${t.employeeId.isEmpty ? "N/A" : t.employeeId}',
+      'Subject  : \${t.subject}',
+      'Academic Year: 2026-27',
+      'Issued by: BDPHS Administration',
+    ].join('\n');
 
   Future<void> _printCard(TeacherModel t) async {
     setState(() => _generating = true);
@@ -208,7 +216,7 @@ class _TeacherIdCardScreenState extends State<TeacherIdCardScreen> {
                 ),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Valid for Academic Year 2025-26',
+                    Text('Valid for Academic Year 2026-27',
                         style: GoogleFonts.poppins(color: Colors.white60, fontSize: 9)),
                     Text('bdphschool1@gmail.com',
                         style: GoogleFonts.poppins(color: Colors.white60, fontSize: 9)),

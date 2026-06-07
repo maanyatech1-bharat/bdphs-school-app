@@ -28,6 +28,7 @@ import '../shared/progress_screen.dart';
 import '../shared/syllabus_gallery_material.dart' hide StudyMaterialScreen;
 import '../shared/profile_edit_screen.dart'; // ✅ Profile edit
 import '../shared/study_notes_screen.dart';
+import '../shared/dictionary_screen.dart';
 import '../shared/chat_screen.dart';          // ✅ Chat
 import '../shared/meeting_screen.dart';       // ✅ Meetings
 
@@ -276,6 +277,10 @@ class _HomeTab extends StatelessWidget {
                 _section('🎓 Learning'),
                 const SizedBox(height: 12),
                 _grid([
+                  _card(Icons.book_rounded, 'Dictionary', const Color(0xFF7C3AED),
+                      () {
+                        _go(context, const DictionaryScreen());
+                      }),
                   _card(Icons.quiz_rounded, 'Quiz', const Color(0xFFD97706),
                       () {
                         final u = context.read<AppAuthProvider>().currentUser;
