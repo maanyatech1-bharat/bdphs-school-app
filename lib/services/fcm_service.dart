@@ -47,7 +47,7 @@ class FCMService {
       final collection = role == 'student' ? 'students' : 'teachers';
       await FirebaseFirestore.instance
           .collection(collection).doc(uid)
-          .update({'fcmToken': token, 'tokenUpdatedAt': FieldValue.serverTimestamp()});
+          .set({'fcmToken': token, 'tokenUpdatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
       debugPrint('FCM token saved');
     } catch (e) {
       debugPrint('Error saving token: \$e');
