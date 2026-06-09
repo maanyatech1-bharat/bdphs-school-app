@@ -646,6 +646,19 @@ class _PostHomeworkSheetState extends State<_PostHomeworkSheet> {
         'isUrgent': _isUrgent,
       });
 
+      // Send FCM notification to students
+      await NotificationSender.notifyClass(
+        className: widget.className,
+        title: _isUrgent ? '🚨 Urgent Homework - $_subject' : '📚 New Homework - $_subject',
+        body: _descCtrl.text.trim().isNotEmpty
+            ? _descCtrl.text.trim()
+            : 'New homework posted by ${widget.user.fullName}',
+        type: 'homework',
+        senderId: widget.user.uid,
+        senderName: widget.user.fullName,
+        extraData: {'className': widget.className, 'subject': _subject},
+      );
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
