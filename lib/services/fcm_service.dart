@@ -35,7 +35,8 @@ class FCMService {
       debugPrint('Tapped: \${message.data}');
     });
 
-    final token = await _fcm.getToken();
+    String? token;
+    try { token = await _fcm.getToken(); } catch(e) { debugPrint('FCM token error: \$e'); return; }
     debugPrint("✅ FCM Token: $token");
     debugPrint("FCM initialized");
   }
