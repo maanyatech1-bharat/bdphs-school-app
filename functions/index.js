@@ -115,3 +115,35 @@ exports.onMeetingScheduled = onDocumentCreated("meetings/{meetingId}", async (ev
     console.log("Meeting notifications sent:", tokens.length);
   } catch (e) { console.error("Meeting notification error:", e); }
 });
+
+
+// ───── Gemini AI Proxy (key stays on server) ─────
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
+const geminiKey = defineSecret("GEMINI_API_KEY");
+
+exports.askGemini = onCall({region: "asia-south1", secrets: [geminiKey]}, async (request) => {
+  // Only logged-in app users can call this
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Login required");
+  }
+  const model = request.data.model || "gemini-2.0-flash";
+  const body = request.data.body;
+  if (!body) {
+    throw new HttpsError("invalid-argument", "Missing body");
+  }
+  try {
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" +
+        model + ":generateContent?key=" + geminiKey.value();
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    return json;
+  } catch (e) {
+    console.error("Gemini proxy error:", e);
+    throw new HttpsError("internal", "AI request failed");
+  }
+});

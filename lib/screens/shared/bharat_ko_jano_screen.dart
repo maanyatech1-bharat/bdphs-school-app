@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme/app_theme.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -167,20 +168,18 @@ Rules:
 
     for (final model in _models) {
       try {
-        final uri = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$_apiKey',
-        );
-        final res = await http.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
+        final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+            .httpsCallable('askGemini');
+        final result = await callable.call({
+          'model': model,
+          'body': {
             'contents': [{'parts': [{'text': prompt}]}],
             'generationConfig': {'maxOutputTokens': 6000, 'temperature': 0.7},
-          }),
-        ).timeout(const Duration(seconds: 40));
+          },
+        }).timeout(const Duration(seconds: 40));
 
-        if (res.statusCode == 200) {
-          final data = jsonDecode(res.body);
+        {
+          final data = result.data;
           final text = data['candidates'][0]['content']['parts'][0]['text'] as String;
           String clean = text
               .replaceAll('```json', '')
@@ -197,8 +196,8 @@ Rules:
               .toList();
           if (questions.isNotEmpty) return questions;
         }
-        // Try next model on rate limit
-        if (res.statusCode != 429 && res.statusCode != 503) break;
+        // No result — try next model
+        continue;
       } catch (_) {
         continue;
       }

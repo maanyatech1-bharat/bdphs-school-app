@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -81,6 +82,23 @@ class _SplashScreenState extends State<SplashScreen>
     _startAnimation();
   }
 
+  bool _offline = false;
+
+  Future<bool> _hasInternet() async {
+    try {
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(seconds: 5));
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _retry() async {
+    setState(() => _offline = false);
+    _startAnimation();
+  }
+
   Future<void> _startAnimation() async {
     await _logoController?.forward();
     await Future.delayed(const Duration(milliseconds: 250));
@@ -88,6 +106,14 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 2200));
 
     if (!mounted) return;
+
+    // Check internet before proceeding
+    final online = await _hasInternet();
+    if (!mounted) return;
+    if (!online) {
+      setState(() => _offline = true);
+      return;
+    }
 
     Navigator.pushReplacement(
       context,
@@ -338,25 +364,57 @@ class _SplashScreenState extends State<SplashScreen>
 
                           const SizedBox(height: 60),
 
-                          // ── Loader ────────────────────────
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(_gold),
+                          // ── Loader / Offline ──────────────
+                          if (_offline) ...[
+                            const Icon(Icons.wifi_off_rounded,
+                                color: Colors.white54, size: 36),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No internet connection',
+                              style: GoogleFonts.dmSans(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          Text(
-                            'Loading...',
-                            style: GoogleFonts.dmSans(
-                              color: Colors.white38,
-                              fontSize: 13,
+                            const SizedBox(height: 14),
+                            OutlinedButton.icon(
+                              onPressed: _retry,
+                              icon: const Icon(Icons.refresh_rounded,
+                                  color: _gold, size: 18),
+                              label: Text(
+                                'Retry',
+                                style: GoogleFonts.dmSans(
+                                  color: _gold,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                    color: _gold.withValues(alpha: 0.6)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30)),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 10),
+                              ),
                             ),
-                          ),
+                          ] else ...[
+                            SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(_gold),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Loading...',
+                              style: GoogleFonts.dmSans(
+                                color: Colors.white38,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

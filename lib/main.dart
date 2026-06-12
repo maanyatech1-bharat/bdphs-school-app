@@ -1,8 +1,10 @@
 // lib/main.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ NEW
@@ -25,6 +27,14 @@ void main() async {
   await dotenv.load(fileName: '.env'); // ✅ Load API keys from .env
   await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform);
+  // App Check: Play Integrity in release, debug provider in dev
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+    ).timeout(const Duration(seconds: 10));
+  } catch (_) {}
   // Initialize Remote Config once at startup
   try {
     final rc = FirebaseRemoteConfig.instance;
@@ -32,21 +42,10 @@ void main() async {
       fetchTimeout: const Duration(seconds: 10),
       minimumFetchInterval: const Duration(hours: 1),
     ));
-    await rc.fetchAndActivate();
+    await rc.fetchAndActivate().timeout(const Duration(seconds: 10));
   } catch (_) {}
 
-  await FCMService().initialize();
-  // Initialize Remote Config once at startup
-  try {
-    final rc = FirebaseRemoteConfig.instance;
-    await rc.setConfigSettings(RemoteConfigSettings(
-      fetchTimeout: const Duration(seconds: 10),
-      minimumFetchInterval: const Duration(hours: 1),
-    ));
-    await rc.fetchAndActivate();
-  } catch (_) {}
-
-  await FCMService().initialize();
+  try { await FCMService().initialize().timeout(const Duration(seconds: 10)); } catch (_) {}
   FlutterNativeSplash.remove();
   runApp(const BDPHSApp());
 }

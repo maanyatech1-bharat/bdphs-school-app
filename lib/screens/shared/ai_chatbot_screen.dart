@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import '../../theme/app_theme.dart';
 
@@ -89,7 +90,7 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
       if (mounted) {
         setState(() {
           _apiKey     = key;
-          _keyMissing = key.isEmpty || key == 'YOUR_GEMINI_API_KEY';
+          _keyMissing = false;
         });
         if (!_keyMissing) _addWelcome();
       }
@@ -156,45 +157,28 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
 
     for (final model in _models) {
       try {
-        final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/'
-          '$model:generateContent?key=$_apiKey',
-        );
-        final res = await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
+        final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+            .httpsCallable('askGemini');
+        final result = await callable.call({
+          'model': model,
+          'body': {
             'contents': simpleContents,
             'generationConfig': {
               'temperature': 0.7,
               'maxOutputTokens': 1024,
             },
-          }),
-        ).timeout(const Duration(seconds: 30));
+          },
+        }).timeout(const Duration(seconds: 30));
 
-        if (res.statusCode == 200) {
-          final data = jsonDecode(res.body);
-          final text = data['candidates']?[0]?['content']?['parts']?[0]?['text']
+        {
+          final data = result.data;
+          final text = data?['candidates']?[0]?['content']?['parts']?[0]?['text']
               as String?;
           if (text != null && text.isNotEmpty) return text;
         }
 
-        // Show the actual error from Google
-        try {
-          final err = jsonDecode(res.body);
-          final msg = err['error']?['message'] as String? ?? '';
-          if (msg.isNotEmpty) {
-            // Model not found → try next
-            if (msg.contains('not found') || msg.contains('not supported') ||
-                res.statusCode == 404) {
-              continue;
-            }
-            // Real error (invalid key, quota, etc.)
-            return '⚠️ Error ${res.statusCode}: $msg';
-          }
-        } catch (_) {}
-
-        if (res.statusCode == 404 || res.statusCode == 400) continue;
+        // No text returned — try next model
+        continue;
       } catch (e) {
         // Network error — show details
         final detail = e.toString();
