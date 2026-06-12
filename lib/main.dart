@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:provider/provider.dart';
@@ -45,6 +46,14 @@ void main() async {
     await rc.fetchAndActivate().timeout(const Duration(seconds: 10));
   } catch (_) {}
 
+  // Crashlytics: report all uncaught errors (release builds only)
+  if (!kDebugMode) {
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  }
   try { await FCMService().initialize().timeout(const Duration(seconds: 10)); } catch (_) {}
   FlutterNativeSplash.remove();
   runApp(const BDPHSApp());
