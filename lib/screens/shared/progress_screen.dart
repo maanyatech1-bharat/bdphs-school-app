@@ -155,7 +155,7 @@ class _ResultsTab extends StatelessWidget {
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(r.subject, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w700)),
-              Text("${r.examType} - ${r.month} ${r.year}", style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
+              Text("${r.examType} - ${r.month.contains(r.year.toString()) ? r.month : '${r.month} ${r.year}'}", style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
               if (r.enteredByName.isNotEmpty)
                 Text("By ${r.enteredByName}", style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textHint)),
             ])),

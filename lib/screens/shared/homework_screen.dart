@@ -1008,6 +1008,8 @@ class _HomeworkImageViewerState extends State<_HomeworkImageViewer> {
           child: Image.network(
             widget.imageUrl,
             fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
             loadingBuilder: (_, child, progress) => progress == null
                 ? child
                 : const Center(

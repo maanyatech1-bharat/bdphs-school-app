@@ -464,7 +464,23 @@ class _GalleryScreenState extends State<GalleryScreen> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: Image.network(p.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox(height: 200, child: Icon(Icons.broken_image_rounded, size: 60, color: AppColors.textHint))),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                  backgroundColor: Colors.black,
+                  appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: Text(p.title, style: GoogleFonts.poppins(fontSize: 15))),
+                  body: Center(
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 0.5,
+                      maxScale: 6.0,
+                      child: Image.network(p.imageUrl, fit: BoxFit.contain, width: double.infinity, height: double.infinity),
+                    ),
+                  ),
+                )));
+              },
+              child: Image.network(p.imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox(height: 200, child: Icon(Icons.broken_image_rounded, size: 60, color: AppColors.textHint))),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),

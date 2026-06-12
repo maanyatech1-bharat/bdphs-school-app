@@ -16,8 +16,8 @@ class ResultModel {
   factory ResultModel.fromMap(Map<String, dynamic> m, String id) => ResultModel(
     id: id, studentId: m['studentId'] ?? '', studentName: m['studentName'] ?? '',
     className: m['className'] ?? '', subject: m['subject'] ?? '',
-    examType: m['examType'] ?? '', maxMarks: (m['maxMarks'] as num?)?.toDouble() ?? 0,
-    obtainedMarks: (m['obtainedMarks'] as num?)?.toDouble() ?? 0,
+    examType: m['examType'] ?? '', maxMarks: ((m['maxMarks'] ?? m['totalMarks']) as num?)?.toDouble() ?? 0,
+    obtainedMarks: ((m['obtainedMarks'] ?? m['marksObtained']) as num?)?.toDouble() ?? 0,
     grade: m['grade'] ?? '', month: m['month'] ?? '', year: m['year'] ?? DateTime.now().year,
     enteredBy: m['enteredBy'] ?? '', enteredByName: m['enteredByName'] ?? '',
     createdAt: m['createdAt'] is Timestamp ? (m['createdAt'] as Timestamp).toDate() : DateTime.now());
