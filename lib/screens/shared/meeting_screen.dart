@@ -536,7 +536,7 @@ class _ScheduleMeetingState extends State<_ScheduleMeeting> {
       // Notify class
       await NotificationSender.notifyClass(
         className: _class,
-        title: '📅 Meeting Scheduled - \${_titleCtrl.text.trim()}',
+        title: '📅 Meeting Scheduled - ${_titleCtrl.text.trim()}',
         body: 'A meeting has been scheduled. Check the meetings section for details.',
         type: 'meeting',
         senderId: widget.user?.uid,

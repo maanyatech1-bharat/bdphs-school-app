@@ -309,7 +309,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               const SizedBox(height: 20),
               isSaving
                 ? Column(children: [
-                    Text('Uploading... \${(uploadProgress * 100).toStringAsFixed(0)}%',
+                    Text('Uploading... ${(uploadProgress * 100).toStringAsFixed(0)}%',
                       style: GoogleFonts.poppins(fontSize: 13, color: AppColors.accent)),
                     const SizedBox(height: 8),
                   ])
@@ -323,8 +323,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       setModal(() => isSaving = true);
                       try {
                         final album = albumCtrl.text.trim().isEmpty ? 'General' : albumCtrl.text.trim();
-                        final fileName = '\${DateTime.now().millisecondsSinceEpoch}_\$pickedFileName';
-                        final storagePath = 'gallery/\$album/\$fileName';
+                        final fileName = '${DateTime.now().millisecondsSinceEpoch}_$pickedFileName';
+                        final storagePath = 'gallery/$album/$fileName';
                         final ref = FirebaseStorage.instance.ref(storagePath);
                         final task = ref.putFile(File(pickedFilePath!));
                         task.snapshotEvents.listen((s) {
@@ -343,7 +343,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                       } catch (e) {
                         setModal(() => isSaving = false);
                         if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Upload failed: \$e')));
+                          SnackBar(content: Text('Upload failed: $e')));
                       }
                     },
                     icon: const Icon(Icons.upload_rounded, color: Colors.white),

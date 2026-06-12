@@ -66,10 +66,10 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       ));
       await rc.fetchAndActivate();
       final key = rc.getString('gemini_api_key');
-      debugPrint('🔑 Gemini key loaded: \${key.isNotEmpty ? "YES (length: \${key.length})" : "EMPTY"}');
+      debugPrint('🔑 Gemini key loaded: ${key.isNotEmpty ? "YES (length: ${key.length})" : "EMPTY"}');
       if (mounted) setState(() => _apiKey = key);
     } catch (e) {
-      debugPrint('Remote config error: \$e');
+      debugPrint('Remote config error: $e');
     }
   }
 

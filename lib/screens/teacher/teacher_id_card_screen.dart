@@ -24,9 +24,9 @@ class _TeacherIdCardScreenState extends State<TeacherIdCardScreen> {
       [
       'BLOOMING DALE PUBLIC HIGH SCHOOL',
       'TEACHER IDENTITY CARD',
-      'Name     : \${t.fullName}',
-      'Emp ID   : \${t.employeeId.isEmpty ? "N/A" : t.employeeId}',
-      'Subject  : \${t.subject}',
+      'Name     : ${t.fullName}',
+      'Emp ID   : ${t.employeeId.isEmpty ? "N/A" : t.employeeId}',
+      'Subject  : ${t.subject}',
       'Academic Year: 2026-27',
       'Issued by: BDPHS Administration',
     ].join('\n');

@@ -275,7 +275,7 @@ class _EnterMarksTabState extends State<_EnterMarksTab> {
         if (raw.isEmpty) continue;
         await NotificationSender.notifyUser(
           userId: uid,
-          title: '📊 Marks Updated - \$_selectedSubject',
+          title: '📊 Marks Updated - $_selectedSubject',
           body: "${s['name']}, your $_selectedExam marks for $_selectedSubject have been uploaded.",
           type: 'marks',
         );

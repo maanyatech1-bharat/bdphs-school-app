@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('Background notification: \${message.notification?.title}');
+  debugPrint('Background notification: ${message.notification?.title}');
 }
 
 class FCMService {
@@ -19,7 +19,7 @@ class FCMService {
     final settings = await _fcm.requestPermission(
       alert: true, badge: true, sound: true,
     );
-    debugPrint('FCM permission: \${settings.authorizationStatus}');
+    debugPrint('FCM permission: ${settings.authorizationStatus}');
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -28,15 +28,15 @@ class FCMService {
     );
 
     FirebaseMessaging.onMessage.listen((message) {
-      debugPrint('Foreground: \${message.notification?.title}');
+      debugPrint('Foreground: ${message.notification?.title}');
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('Tapped: \${message.data}');
+      debugPrint('Tapped: ${message.data}');
     });
 
     String? token;
-    try { token = await _fcm.getToken(); } catch(e) { debugPrint('FCM token error: \$e'); return; }
+    try { token = await _fcm.getToken(); } catch(e) { debugPrint('FCM token error: $e'); return; }
     debugPrint("✅ FCM Token: $token");
     debugPrint("FCM initialized");
   }
@@ -51,7 +51,7 @@ class FCMService {
           .set({'fcmToken': token, 'tokenUpdatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
       debugPrint('FCM token saved');
     } catch (e) {
-      debugPrint('Error saving token: \$e');
+      debugPrint('Error saving token: $e');
     }
   }
 
@@ -59,8 +59,8 @@ class FCMService {
     try { await _fcm.subscribeToTopic('all'); } catch (_) {}
     try { await _fcm.subscribeToTopic(role); } catch (_) {}
     if (role == 'student' && className != null) {
-      final topic = className.replaceAll(' ', '_').toLowerCase();
-      await _fcm.subscribeToTopic('class_\$topic');
+      final topic = className.replaceAll(RegExp(r'[^a-zA-Z0-9-_.~%]'), '_').toLowerCase();
+      try { await _fcm.subscribeToTopic('class_' + topic); } catch (_) {}
     }
   }
 }
@@ -86,7 +86,7 @@ class NotificationSender {
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
       });
-    } catch (e) { debugPrint('Error: \$e'); }
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   static Future<void> notifyUser({
@@ -104,6 +104,6 @@ class NotificationSender {
         'createdAt': FieldValue.serverTimestamp(),
         'isRead': false,
       });
-    } catch (e) { debugPrint('Error: \$e'); }
+    } catch (e) { debugPrint('Error: $e'); }
   }
 }
